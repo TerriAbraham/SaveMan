@@ -1,10 +1,14 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
+import { useAuth } from '@/context/auth-context';
 import { bookings as seedBookings, conversations as seedConversations, messages as seedMessages, reviews as seedReviews } from '@/data/activity';
 import type { Booking, Conversation, Message, Review } from '@/data/types';
+import { canAccept, canComplete, canDecline, canReview } from '@/utils/booking-rules';
 import { toLocalDateTime } from '@/utils/dates';
 
 export type NewBooking = Omit<Booking, 'id' | 'status'>;
+export type BookingResponse = 'accept' | 'decline' | 'complete';
+export type NewReview = Pick<Review, 'bookingId' | 'clientId' | 'rating' | 'comment'>;
 
 interface DataContextValue {
   bookings: Booking[];
@@ -13,6 +17,10 @@ interface DataContextValue {
   messages: Message[];
   createBooking: (input: NewBooking) => Booking;
   cancelBooking: (bookingId: string) => void;
+  /** Consultant actions on a booking. Returns an error message, or null on success. */
+  respondToBooking: (bookingId: string, consultantId: string, response: BookingResponse) => string | null;
+  /** Returns an error message, or null on success. */
+  addReview: (input: NewReview) => string | null;
   sendMessage: (input: { clientId: string; consultantId: string; senderId: string; text: string }) => void;
   markConversationRead: (conversationId: string, readerId: string) => void;
 }
@@ -25,8 +33,9 @@ const newId = (prefix: string) => `${prefix}-new-${Date.now()}-${nextId++}`;
 // In-memory only, like auth: changes reset when the app reloads.
 // It sits above the auth screens so data survives logging out and in as another role.
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { recordRating } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [reviews] = useState<Review[]>(seedReviews);
+  const [reviews, setReviews] = useState<Review[]>(seedReviews);
   const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
   const [messages, setMessages] = useState<Message[]>(seedMessages);
 
@@ -39,6 +48,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   function cancelBooking(bookingId: string) {
     setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b)));
+  }
+
+  function respondToBooking(bookingId: string, consultantId: string, response: BookingResponse) {
+    const booking = bookings.find((b) => b.id === bookingId && b.consultantId === consultantId);
+    if (!booking) return 'Booking not found.';
+    const rules = {
+      accept: { allowed: canAccept(booking), status: 'confirmed', error: 'Only upcoming requests can be accepted.' },
+      decline: { allowed: canDecline(booking), status: 'declined', error: 'Only requests can be declined.' },
+      complete: {
+        allowed: canComplete(booking),
+        status: 'completed',
+        error: 'A session can be marked completed once it has started.',
+      },
+    } as const;
+    const rule = rules[response];
+    if (!rule.allowed) return rule.error;
+    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: rule.status } : b)));
+    return null;
+  }
+
+  function addReview({ bookingId, clientId, rating, comment }: NewReview) {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking || !canReview(booking, reviews, clientId)) {
+      return 'You can review a session once, after it has been completed.';
+    }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return 'Choose a rating from 1 to 5 stars.';
+    const review: Review = {
+      id: newId('r'),
+      bookingId,
+      clientId,
+      consultantId: booking.consultantId,
+      rating,
+      comment: comment.trim(),
+      createdAt: toLocalDateTime(new Date()).slice(0, 10),
+    };
+    setReviews((prev) => [...prev, review]);
+    recordRating(booking.consultantId, rating);
+    return null;
   }
 
   function sendMessage({ clientId, consultantId, senderId, text }: { clientId: string; consultantId: string; senderId: string; text: string }) {
@@ -72,7 +119,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-      value={{ bookings, reviews, conversations, messages, createBooking, cancelBooking, sendMessage, markConversationRead }}>
+      value={{
+        bookings,
+        reviews,
+        conversations,
+        messages,
+        createBooking,
+        cancelBooking,
+        respondToBooking,
+        addReview,
+        sendMessage,
+        markConversationRead,
+      }}>
       {children}
     </DataContext.Provider>
   );

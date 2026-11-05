@@ -80,6 +80,47 @@ const recentBookings: Booking[] = [
     status: 'completed',
     price: 250,
   },
+  // Session has happened but the consultant hasn't marked it completed yet.
+  {
+    id: 'b-7',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-1',
+    serviceName: 'Business plan review',
+    date: '2026-11-04',
+    time: '14:00',
+    durationMins: 60,
+    mode: 'in-person',
+    note: 'Follow-up on the bakery plan: pricing and staffing.',
+    status: 'confirmed',
+    price: 250,
+  },
+  // Completed but not reviewed yet, so the client can leave a review.
+  {
+    id: 'b-8',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-5',
+    serviceName: 'Cloud migration planning',
+    date: '2026-10-28',
+    time: '10:00',
+    durationMins: 60,
+    mode: 'video',
+    note: 'Moving the shop email and files to the cloud.',
+    status: 'completed',
+    price: 220,
+  },
+  {
+    id: 'b-9',
+    clientId: 'u-client-7',
+    consultantId: 'u-cons-1',
+    serviceName: 'SME growth strategy',
+    date: '2026-11-11',
+    time: '09:00',
+    durationMins: 120,
+    mode: 'video',
+    note: 'Planning to open a second hardware store in Lae.',
+    status: 'pending',
+    price: 480,
+  },
 ];
 
 const recentReviews: Review[] = [

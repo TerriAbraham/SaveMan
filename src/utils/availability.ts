@@ -1,4 +1,4 @@
-import type { Booking, Consultant } from '@/data/types';
+import type { Booking, Consultant, WeeklyAvailability } from '@/data/types';
 
 import { fromISODate, fromMinutes, toISODate, toMinutes } from './dates';
 
@@ -51,6 +51,45 @@ export function getSlots(
 export function worksOn(consultant: Consultant, date: string) {
   const weekday = fromISODate(date).getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
   return (consultant.availability[weekday]?.length ?? 0) > 0;
+}
+
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Monday first, as consultants plan their week. */
+export const WEEK_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
+
+/**
+ * Checks each day's windows: end after start, at least 30 minutes, no overlaps.
+ * Returns an error message per invalid day (empty object if all valid).
+ */
+export function validateAvailability(week: WeeklyAvailability): Partial<Record<Weekday, string>> {
+  const errors: Partial<Record<Weekday, string>> = {};
+  for (const day of WEEK_ORDER) {
+    const windows = [...(week[day] ?? [])].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+    for (let i = 0; i < windows.length; i++) {
+      const start = toMinutes(windows[i].start);
+      const end = toMinutes(windows[i].end);
+      if (end - start < 30) {
+        errors[day] = 'Each time block must end at least 30 minutes after it starts.';
+        break;
+      }
+      if (i > 0 && start < toMinutes(windows[i - 1].end)) {
+        errors[day] = 'Time blocks on the same day can’t overlap.';
+        break;
+      }
+    }
+  }
+  return errors;
+}
+
+/** Sorted windows per day, dropping days with none, ready to save. */
+export function normalizeAvailability(week: WeeklyAvailability): WeeklyAvailability {
+  const result: WeeklyAvailability = {};
+  for (const day of WEEK_ORDER) {
+    const windows = [...(week[day] ?? [])].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+    if (windows.length > 0) result[day] = windows;
+  }
+  return result;
 }
 
 /** Pending/confirmed bookings from today on are "upcoming"; everything else is history. */

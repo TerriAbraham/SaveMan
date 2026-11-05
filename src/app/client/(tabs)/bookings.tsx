@@ -9,13 +9,14 @@ import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import { isUpcoming } from '@/utils/availability';
+import { canReview } from '@/utils/booking-rules';
 
 type Tab = 'upcoming' | 'past';
 
 export default function MyBookingsScreen() {
   const router = useRouter();
   const { user, users } = useAuth();
-  const { bookings } = useData();
+  const { bookings, reviews } = useData();
   const [tab, setTab] = useState<Tab>('upcoming');
 
   const mine = bookings.filter((b) => b.clientId === user?.id);
@@ -59,6 +60,11 @@ export default function MyBookingsScreen() {
             booking={item}
             personName={users.find((u) => u.id === item.consultantId)?.name ?? 'Consultant'}
             onPress={() => router.push({ pathname: '/client/booking/[id]', params: { id: item.id } })}
+            footer={
+              user && canReview(item, reviews, user.id) ? (
+                <Text className="text-label text-red">★ Leave a review</Text>
+              ) : undefined
+            }
           />
         )}
         ListEmptyComponent={

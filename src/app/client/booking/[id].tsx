@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
+import { Stars } from '@/components/rating';
 import { isUpcoming } from '@/utils/availability';
+import { canReview, hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatDuration, formatKina } from '@/utils/format';
 
@@ -20,7 +22,7 @@ export default function BookingDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, users } = useAuth();
-  const { bookings, cancelBooking } = useData();
+  const { bookings, reviews, cancelBooking } = useData();
 
   const booking = bookings.find((b) => b.id === id && b.clientId === user?.id);
   const consultant = users.find((u) => u.id === booking?.consultantId);
@@ -37,8 +39,11 @@ export default function BookingDetailScreen() {
   }
 
   const status = bookingStatusMeta[booking.status];
-  const canCancel = isUpcoming(booking);
+  // Can't cancel a session that has already started.
+  const canCancel = isUpcoming(booking) && !hasStarted(booking);
   const mode = modeMeta[booking.mode];
+  const myReview = reviews.find((r) => r.bookingId === booking.id);
+  const reviewable = user !== null && canReview(booking, reviews, user.id);
 
   function confirmCancel() {
     Alert.alert('Cancel this booking?', 'The consultant will be told the session is cancelled.', [
@@ -96,6 +101,24 @@ export default function BookingDetailScreen() {
             <Text className="text-title text-fg">{formatKina(booking.price)}</Text>
           </View>
         </View>
+
+        {myReview ? (
+          <View className="gap-2 rounded-card border border-line bg-surface p-4">
+            <Text className="text-heading text-fg">Your review</Text>
+            <Stars rating={myReview.rating} size={16} />
+            {myReview.comment !== '' && <Text className="text-body text-fg">{myReview.comment}</Text>}
+          </View>
+        ) : (
+          reviewable && (
+            <View className="gap-3 rounded-card bg-gold-tint p-4">
+              <Text className="text-body text-fg">How did it go? Your review helps other clients choose.</Text>
+              <Button
+                title="Leave a review"
+                onPress={() => router.push({ pathname: '/client/review/[id]', params: { id: booking.id } })}
+              />
+            </View>
+          )
+        )}
 
         <Button
           title={`Message ${consultant.name.replace(/^Dr\.?\s+/, '').split(' ')[0]}`}

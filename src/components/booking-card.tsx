@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -14,7 +15,18 @@ export const modeMeta: Record<Booking['mode'], { label: string; icon: IconName }
   phone: { label: 'Phone call', icon: 'phone' },
 };
 
-export function BookingCard({ booking, personName, onPress }: { booking: Booking; personName: string; onPress: () => void }) {
+export function BookingCard({
+  booking,
+  personName,
+  onPress,
+  footer,
+}: {
+  booking: Booking;
+  personName: string;
+  onPress: () => void;
+  /** Extra content under the status, e.g. action buttons. */
+  footer?: ReactNode;
+}) {
   const mode = modeMeta[booking.mode];
   return (
     <Pressable
@@ -42,6 +54,7 @@ export function BookingCard({ booking, personName, onPress }: { booking: Booking
       </View>
 
       <BookingStatusPill status={booking.status} />
+      {footer}
     </Pressable>
   );
 }

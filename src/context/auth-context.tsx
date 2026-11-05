@@ -15,8 +15,10 @@ export interface SignUpInput {
   categoryId?: string;
 }
 
-/** Fields a consultant can change from Edit profile. */
-export type ConsultantProfileChanges = Partial<Pick<Consultant, 'title' | 'bio' | 'hourlyRate' | 'location'>>;
+/** Fields a consultant can change themselves: profile, services and availability. */
+export type ConsultantProfileChanges = Partial<
+  Pick<Consultant, 'title' | 'bio' | 'hourlyRate' | 'location' | 'services' | 'availability'>
+>;
 
 interface AuthContextValue {
   user: User | null;
@@ -25,6 +27,7 @@ interface AuthContextValue {
   signUp: (input: SignUpInput) => string | null;
   signOut: () => void;
   updateConsultant: (id: string, changes: ConsultantProfileChanges) => void;
+  recordRating: (consultantId: string, rating: number) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -100,8 +103,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsers((prev) => prev.map((u) => (u.id === id && u.role === 'consultant' ? { ...u, ...changes } : u)));
   }
 
+  /** Fold a new review into the consultant's average rating and count. */
+  function recordRating(consultantId: string, rating: number) {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== consultantId || u.role !== 'consultant') return u;
+        const reviewCount = u.reviewCount + 1;
+        // Keep one decimal place, as shown in the app.
+        const average = Math.round(((u.rating * u.reviewCount + rating) / reviewCount) * 10) / 10;
+        return { ...u, rating: average, reviewCount };
+      }),
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ user, users, signIn, signUp, signOut, updateConsultant }}>
+    <AuthContext.Provider value={{ user, users, signIn, signUp, signOut, updateConsultant, recordRating }}>
       {children}
     </AuthContext.Provider>
   );

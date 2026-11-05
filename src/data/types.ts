@@ -33,6 +33,7 @@ export interface Client extends BaseUser {
 }
 
 export interface Service {
+  id: string;
   name: string;
   description: string;
   durationMins: number;
