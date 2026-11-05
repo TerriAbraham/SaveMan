@@ -1,8 +1,15 @@
+import '@/global.css';
+
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LogBox } from 'react-native';
 
 import { colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+
+// NativeWind 4.2.7 touches ImageBackground at startup, which React Native 0.88 marks as deprecated.
+// Harmless (the app doesn't use ImageBackground). https://github.com/nativewind/nativewind/issues/1881
+LogBox.ignoreLogs(['ImageBackground is deprecated']);
 
 export default function RootLayout() {
   return (

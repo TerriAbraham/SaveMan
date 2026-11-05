@@ -1,12 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors } from '@/constants/theme';
 
 /** Sawtooth band inspired by PNG tapa cloth and bilum patterns. */
 export function PatternBand({ height = 14, count = 24 }: { height?: number; count?: number }) {
   return (
-    <View style={[styles.band, { height }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View
+      className="flex-row items-end overflow-hidden bg-ink"
+      style={{ height }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants">
       {Array.from({ length: count }, (_, i) => (
+        // Triangles are drawn with borders, so their geometry stays in style.
         <View
           key={i}
           style={{
@@ -31,15 +36,19 @@ export function BrandMark({ size = 56 }: { size?: number }) {
   const side = size * 2;
   const centre = size * Math.SQRT1_2;
   return (
-    <View style={[styles.mark, { width: size, height: size, borderRadius: size * 0.28 }]}>
+    <View
+      className="items-center justify-center overflow-hidden border-2 border-gold bg-ink"
+      style={{ width: size, height: size, borderRadius: size * 0.28 }}>
       <View
-        style={[
-          styles.markRed,
-          { width: side, height: side, left: centre - side / 2, top: -centre - side / 2 },
-        ]}
+        className="absolute rotate-45 bg-red"
+        style={{ width: side, height: side, left: centre - side / 2, top: -centre - side / 2 }}
       />
-      <Text style={[styles.markLetter, { fontSize: size * 0.5 }]}>S</Text>
-      <Text style={[styles.markStar, { fontSize: size * 0.22, bottom: size * 0.06, left: size * 0.12 }]}>★</Text>
+      <Text className="font-black text-on-dark" style={{ fontSize: size * 0.5 }}>
+        S
+      </Text>
+      <Text className="absolute text-gold" style={{ fontSize: size * 0.22, bottom: size * 0.06, left: size * 0.12 }}>
+        ★
+      </Text>
     </View>
   );
 }
@@ -47,34 +56,8 @@ export function BrandMark({ size = 56 }: { size?: number }) {
 export function Wordmark({ light }: { light?: boolean }) {
   return (
     <View>
-      <Text style={[styles.word, { color: light ? colors.textOnDark : colors.ink }]}>SaveMan</Text>
-      <Text style={styles.sub}>CONSULTANT</Text>
+      <Text className={`text-[26px] font-extrabold tracking-[-0.5px] ${light ? 'text-on-dark' : 'text-ink'}`}>SaveMan</Text>
+      <Text className="-mt-0.5 text-[11px] font-bold tracking-[4px] text-gold">CONSULTANT</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  band: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    overflow: 'hidden',
-    backgroundColor: colors.ink,
-  },
-  mark: {
-    backgroundColor: colors.ink,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.gold,
-  },
-  markRed: {
-    position: 'absolute',
-    backgroundColor: colors.red,
-    transform: [{ rotate: '45deg' }],
-  },
-  markLetter: { color: colors.textOnDark, fontWeight: '900' },
-  markStar: { position: 'absolute', color: colors.gold },
-  word: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { fontSize: 11, fontWeight: '700', letterSpacing: 4, color: colors.gold, marginTop: -2 },
-});

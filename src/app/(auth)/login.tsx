@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { AuthScreen } from '@/components/auth-screen';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
-import { colors, radius, spacing, type } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 
 // Matches the seeded accounts in src/data/users.ts.
@@ -58,21 +58,21 @@ export default function LoginScreen() {
         returnKeyType="go"
       />
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
 
       <Button title="Log in" onPress={handleLogin} />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.muted}>New to SaveMan?</Text>
+      <View className="flex-row justify-center gap-1">
+        <Text className="text-body text-fg-muted">New to SaveMan?</Text>
         <Pressable onPress={() => router.replace('/sign-up')} hitSlop={8}>
-          <Text style={styles.link}>Create an account</Text>
+          <Text className="text-body font-bold text-red">Create an account</Text>
         </Pressable>
       </View>
 
-      <View style={styles.demo}>
-        <Text style={styles.demoTitle}>Demo accounts</Text>
-        <Text style={styles.muted}>Tap one to fill in its login details.</Text>
-        <View style={styles.demoRow}>
+      <View className="mt-2 gap-1 rounded-card bg-gold-tint p-4">
+        <Text className="text-heading text-fg">Demo accounts</Text>
+        <Text className="text-body text-fg-muted">Tap one to fill in its login details.</Text>
+        <View className="mt-2 flex-row gap-2">
           {demoAccounts.map((d) => (
             <Pressable
               key={d.label}
@@ -82,9 +82,9 @@ export default function LoginScreen() {
                 setPassword(d.password);
                 setError(null);
               }}
-              style={({ pressed }) => [styles.demoItem, pressed && { opacity: 0.7 }]}>
+              className="flex-1 items-center gap-1 rounded-xl border border-line bg-surface py-3 active:opacity-70">
               <Icon name={d.icon} size={20} color={colors.ink} />
-              <Text style={styles.demoLabel}>{d.label}</Text>
+              <Text className="text-label text-fg">{d.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -92,37 +92,3 @@ export default function LoginScreen() {
     </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  error: {
-    ...type.label,
-    color: colors.redDark,
-    backgroundColor: colors.redTint,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
-  },
-  switchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs },
-  muted: { ...type.body, color: colors.textMuted },
-  link: { ...type.body, color: colors.red, fontWeight: '700' },
-  demo: {
-    marginTop: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.goldTint,
-    gap: spacing.xs,
-  },
-  demoTitle: { ...type.heading, color: colors.text },
-  demoRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  demoItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  demoLabel: { ...type.label, color: colors.text },
-});

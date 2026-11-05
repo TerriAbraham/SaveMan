@@ -1,0 +1,11 @@
+{
+  "ink": { "DEFAULT": "#14110F", "soft": "#2A2420" },
+  "red": { "DEFAULT": "#C8102E", "dark": "#9E0C24", "tint": "#FBE9EC" },
+  "gold": { "DEFAULT": "#F2B705", "tint": "#FFF6D9" },
+  "forest": { "DEFAULT": "#1F6F50", "tint": "#E3F2EA" },
+  "sand": "#FAF6F0",
+  "surface": "#FFFFFF",
+  "line": "#E8E0D5",
+  "fg": { "DEFAULT": "#1C1917", "muted": "#6B625A" },
+  "on-dark": { "DEFAULT": "#FFFFFF", "muted": "#CFC6BC" }
+}

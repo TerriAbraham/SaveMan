@@ -1,6 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
 
@@ -12,11 +12,11 @@ interface ButtonProps {
   disabled?: boolean;
 }
 
-const variants: Record<Variant, { bg: string; fg: string; border: string }> = {
-  primary: { bg: colors.red, fg: colors.textOnDark, border: colors.red },
-  secondary: { bg: colors.ink, fg: colors.textOnDark, border: colors.ink },
-  outline: { bg: 'transparent', fg: colors.ink, border: colors.border },
-  ghost: { bg: 'transparent', fg: colors.red, border: 'transparent' },
+const variants: Record<Variant, { container: string; label: string; spinner: string }> = {
+  primary: { container: 'bg-red border-red', label: 'text-on-dark', spinner: colors.textOnDark },
+  secondary: { container: 'bg-ink border-ink', label: 'text-on-dark', spinner: colors.textOnDark },
+  outline: { container: 'bg-transparent border-line', label: 'text-ink', spinner: colors.ink },
+  ghost: { container: 'bg-transparent border-transparent', label: 'text-red', spinner: colors.red },
 };
 
 export function Button({ title, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
@@ -29,27 +29,12 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
       accessibilityState={{ disabled: inactive }}
       onPress={onPress}
       disabled={inactive}
-      style={({ pressed }) => [
-        styles.base,
-        { backgroundColor: v.bg, borderColor: v.border },
-        pressed && styles.pressed,
-        inactive && styles.inactive,
-      ]}>
-      {loading ? <ActivityIndicator color={v.fg} /> : <Text style={[styles.title, { color: v.fg }]}>{title}</Text>}
+      className={`min-h-[52px] items-center justify-center rounded-xl border-[1.5px] px-6 active:scale-[0.99] active:opacity-85 ${v.container} ${inactive ? 'opacity-50' : ''}`}>
+      {loading ? (
+        <ActivityIndicator color={v.spinner} />
+      ) : (
+        <Text className={`text-[16px] font-bold ${v.label}`}>{title}</Text>
+      )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  title: { fontSize: 16, fontWeight: '700' },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  inactive: { opacity: 0.5 },
-});

@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { AuthScreen } from '@/components/auth-screen';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TextField } from '@/components/ui/text-field';
-import { colors, radius, spacing, type } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { categories } from '@/data/categories';
 import { cities } from '@/data/users';
@@ -75,7 +75,7 @@ export default function SignUpScreen() {
 
   return (
     <AuthScreen title="Create account" subtitle="Join SaveMan as a client or a consultant.">
-      <View style={styles.segment} accessibilityRole="tablist">
+      <View className="flex-row gap-1 rounded-xl border border-line bg-surface p-1" accessibilityRole="tablist">
         {(['client', 'consultant'] as const).map((t) => {
           const selected = accountType === t;
           return (
@@ -84,9 +84,9 @@ export default function SignUpScreen() {
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               onPress={() => setAccountType(t)}
-              style={[styles.segmentItem, selected && styles.segmentSelected]}>
+              className={`flex-1 flex-row items-center justify-center gap-2 rounded-lg py-3 ${selected ? 'bg-ink' : ''}`}>
               <Icon name={t === 'client' ? 'person' : 'briefcase'} size={18} color={selected ? colors.textOnDark : colors.textMuted} />
-              <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
+              <Text className={`text-[14px] font-semibold ${selected ? 'text-on-dark' : 'text-fg-muted'}`}>
                 {t === 'client' ? 'I need advice' : "I'm a consultant"}
               </Text>
             </Pressable>
@@ -129,22 +129,22 @@ export default function SignUpScreen() {
       <TextField label="Confirm password" icon="lock" value={form.confirm} onChangeText={(v) => set('confirm', v)} placeholder="Re-enter password" secureTextEntry autoComplete="new-password" error={errors.confirm} />
 
       {isConsultant && (
-        <View style={styles.notice}>
+        <View className="flex-row items-start gap-3 rounded-xl bg-forest-tint p-4">
           <Icon name="verified" size={20} color={colors.forest} />
-          <Text style={styles.noticeText}>
+          <Text className="flex-1 text-body text-fg">
             New consultant profiles are reviewed by the SaveMan team. Clients can book you once you are verified.
           </Text>
         </View>
       )}
 
-      {formError && <Text style={styles.formError}>{formError}</Text>}
+      {formError && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{formError}</Text>}
 
       <Button title={isConsultant ? 'Apply as consultant' : 'Create account'} onPress={handleSubmit} />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.muted}>Already have an account?</Text>
+      <View className="flex-row justify-center gap-1">
+        <Text className="text-body text-fg-muted">Already have an account?</Text>
         <Pressable onPress={() => router.replace('/login')} hitSlop={8}>
-          <Text style={styles.link}>Log in</Text>
+          <Text className="text-body font-bold text-red">Log in</Text>
         </Pressable>
       </View>
     </AuthScreen>
@@ -153,58 +153,11 @@ export default function SignUpScreen() {
 
 function ChipGroup({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
-    <View style={styles.group}>
-      <Text style={styles.groupLabel}>{label}</Text>
-      <View style={styles.chips}>{children}</View>
-      {error && <Text style={styles.fieldError}>{error}</Text>}
+    <View className="gap-2">
+      <Text className="text-label text-fg">{label}</Text>
+      <View className="flex-row flex-wrap gap-2">{children}</View>
+      {error && <Text className="text-caption text-red-dark">{error}</Text>}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xs,
-    gap: spacing.xs,
-  },
-  segmentItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: radius.sm,
-  },
-  segmentSelected: { backgroundColor: colors.ink },
-  segmentText: { ...type.label, fontSize: 14, color: colors.textMuted },
-  segmentTextSelected: { color: colors.textOnDark },
-  group: { gap: spacing.sm },
-  groupLabel: { ...type.label, color: colors.text },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  fieldError: { ...type.caption, color: colors.redDark },
-  notice: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
-    padding: spacing.lg,
-    borderRadius: radius.md,
-    backgroundColor: colors.forestTint,
-  },
-  noticeText: { ...type.body, color: colors.text, flex: 1 },
-  formError: {
-    ...type.label,
-    color: colors.redDark,
-    backgroundColor: colors.redTint,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
-  },
-  switchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs },
-  muted: { ...type.body, color: colors.textMuted },
-  link: { ...type.body, color: colors.red, fontWeight: '700' },
-});
