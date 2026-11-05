@@ -2,8 +2,11 @@ import { Tabs } from 'expo-router';
 
 import { Icon } from '@/components/icon';
 import { tabScreenOptions } from '@/constants/navigation';
+import { useUnreadCount } from '@/hooks/use-messages';
 
-export default function ClientLayout() {
+export default function ClientTabsLayout() {
+  const unread = useUnreadCount();
+
   return (
     <Tabs screenOptions={tabScreenOptions}>
       <Tabs.Screen
@@ -20,7 +23,11 @@ export default function ClientLayout() {
       />
       <Tabs.Screen
         name="messages"
-        options={{ title: 'Messages', tabBarIcon: ({ color }) => <Icon name="chat" color={color} /> }}
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color }) => <Icon name="chat" color={color} />,
+          tabBarBadge: unread > 0 ? unread : undefined,
+        }}
       />
       <Tabs.Screen
         name="profile"

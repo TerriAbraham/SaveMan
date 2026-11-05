@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark, PatternBand } from '@/components/brand';
@@ -13,7 +13,8 @@ export function AuthScreen({ title, subtitle, children }: { title: string; subti
   const insets = useSafeAreaInsets();
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-sand" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // Expo apps are edge-to-edge, so Android needs a behavior too or inputs stay under the keyboard.
+    <KeyboardAvoidingView className="flex-1 bg-sand" behavior="padding">
       {/* Safe-area insets are dynamic, so they stay in style. */}
       <View className="gap-1 bg-ink px-6 pb-6" style={{ paddingTop: insets.top + 8 }}>
         <View className="mb-4 flex-row items-center justify-between">

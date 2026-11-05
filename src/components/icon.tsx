@@ -32,6 +32,10 @@ const icons = {
   globe: { ios: 'globe', android: 'language', web: 'language' },
   award: { ios: 'rosette', android: 'workspace_premium', web: 'workspace_premium' },
   chevronRight: { ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' },
+  send: { ios: 'paperplane.fill', android: 'send', web: 'send' },
+  video: { ios: 'video.fill', android: 'videocam', web: 'videocam' },
+  check: { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' },
+  note: { ios: 'text.alignleft', android: 'notes', web: 'notes' },
 } satisfies Record<string, SymbolName>;
 
 export type IconName = keyof typeof icons;

@@ -1,5 +1,5 @@
 import { useAuth } from '@/context/auth-context';
-import { reviews } from '@/data/activity';
+import { useData } from '@/context/data-context';
 import type { Consultant } from '@/data/types';
 
 /** Consultants clients can see: verified by the admin and not suspended. */
@@ -17,6 +17,7 @@ export function usePublicConsultant(id: string | undefined) {
 /** Reviews for a consultant, newest first, with the reviewer's name attached. */
 export function useConsultantReviews(consultantId: string) {
   const { users } = useAuth();
+  const { reviews } = useData();
   return reviews
     .filter((r) => r.consultantId === consultantId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))

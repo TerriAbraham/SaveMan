@@ -33,6 +33,15 @@ export interface Service {
   price: number; // PGK (Kina)
 }
 
+/** A block of working time, "HH:mm" in local time. */
+export interface TimeWindow {
+  start: string;
+  end: string;
+}
+
+/** Working windows per weekday, 0 = Sunday ... 6 = Saturday. Missing days are days off. */
+export type WeeklyAvailability = Partial<Record<0 | 1 | 2 | 3 | 4 | 5 | 6, TimeWindow[]>>;
+
 export interface Consultant extends BaseUser {
   role: 'consultant';
   title: string;
@@ -40,6 +49,7 @@ export interface Consultant extends BaseUser {
   bio: string;
   expertise: string[];
   services: Service[];
+  availability: WeeklyAvailability;
   hourlyRate: number; // PGK (Kina)
   yearsExperience: number;
   languages: string[];
@@ -67,6 +77,7 @@ export interface Booking {
   id: string;
   clientId: string;
   consultantId: string;
+  serviceName: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   durationMins: number;
@@ -91,7 +102,8 @@ export interface Message {
   conversationId: string;
   senderId: string;
   text: string;
-  sentAt: string; // ISO datetime
+  sentAt: string; // local "YYYY-MM-DDTHH:mm:ss"
+  read: boolean; // has the recipient opened it
 }
 
 export interface Conversation {

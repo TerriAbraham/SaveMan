@@ -16,6 +16,7 @@ import { formatDate, formatDuration, formatKina } from '@/utils/format';
 
 export default function ConsultantProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const consultant = usePublicConsultant(id);
   const insets = useSafeAreaInsets();
 
@@ -82,7 +83,12 @@ export default function ConsultantProfileScreen() {
 
           <Section title="Services">
             {c.services.map((s, i) => (
-              <View key={s.name} className={`gap-1 ${i > 0 ? 'border-t border-line pt-3' : ''}`}>
+              <Pressable
+                key={s.name}
+                onPress={() => router.push({ pathname: '/client/book/[id]', params: { id: c.id, service: String(i) } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Book ${s.name}, ${formatKina(s.price)}`}
+                className={`gap-1 active:opacity-70 ${i > 0 ? 'border-t border-line pt-3' : ''}`}>
                 <View className="flex-row items-start justify-between gap-3">
                   <Text className="flex-1 text-[15px] font-bold text-fg">{s.name}</Text>
                   <Text className="text-[15px] font-bold text-red">{formatKina(s.price)}</Text>
@@ -90,9 +96,11 @@ export default function ConsultantProfileScreen() {
                 <Text className="text-body text-fg-muted">{s.description}</Text>
                 <View className="flex-row items-center gap-1">
                   <Icon name="clock" size={13} color={colors.textMuted} />
-                  <Text className="text-caption text-fg-muted">{formatDuration(s.durationMins)}</Text>
+                  <Text className="flex-1 text-caption text-fg-muted">{formatDuration(s.durationMins)}</Text>
+                  <Text className="text-label text-red">Book</Text>
+                  <Icon name="chevronRight" size={14} color={colors.red} />
                 </View>
-              </View>
+              </Pressable>
             ))}
           </Section>
 
@@ -112,14 +120,24 @@ export default function ConsultantProfileScreen() {
 
       {/* Sticky booking bar */}
       <View
-        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-4 border-t border-line bg-surface px-4 pt-3"
+        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-3 border-t border-line bg-surface px-4 pt-3"
         style={{ paddingBottom: insets.bottom + 12 }}>
         <View>
           <Text className="text-caption text-fg-muted">Sessions from</Text>
           <Text className="text-title text-fg">{formatKina(startingPrice)}</Text>
         </View>
+        <Pressable
+          onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: c.id } })}
+          accessibilityRole="button"
+          accessibilityLabel={`Message ${c.name}`}
+          className="h-[52px] w-[52px] items-center justify-center rounded-xl border-[1.5px] border-line active:opacity-70">
+          <Icon name="chat" size={22} color={colors.ink} />
+        </Pressable>
         <View className="flex-1">
-          <Button title="Book a session" disabled onPress={() => {}} />
+          <Button
+            title="Book a session"
+            onPress={() => router.push({ pathname: '/client/book/[id]', params: { id: c.id } })}
+          />
         </View>
       </View>
     </View>

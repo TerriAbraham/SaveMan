@@ -1,4 +1,27 @@
-import type { Admin, Client, Consultant, Location, User } from './types';
+import type { Admin, Client, Consultant, Location, User, WeeklyAvailability } from './types';
+
+const office = [
+  { start: '09:00', end: '12:00' },
+  { start: '13:00', end: '17:00' },
+];
+
+/** Mon–Fri office hours with a lunch break. New consultants start with this. */
+export const standardWeek: WeeklyAvailability = { 1: office, 2: office, 3: office, 4: office, 5: office };
+
+// Farm visits on the other days, so only Tue/Thu mornings and Saturday.
+const fieldWeek: WeeklyAvailability = {
+  2: [{ start: '08:00', end: '12:00' }],
+  4: [{ start: '08:00', end: '12:00' }],
+  6: [{ start: '08:00', end: '11:00' }],
+};
+
+// After-work coaching for people with day jobs.
+const eveningWeek: WeeklyAvailability = {
+  1: [{ start: '17:00', end: '20:00' }],
+  3: [{ start: '17:00', end: '20:00' }],
+  5: [{ start: '17:00', end: '20:00' }],
+  6: [{ start: '09:00', end: '13:00' }],
+};
 
 // Coordinates for the main PNG centres, used later for the Google Maps screen.
 const places = {
@@ -126,6 +149,7 @@ export const consultants: Consultant[] = [
       { name: 'Funding application support', description: 'Prepare a strong application for a bank loan or grant.', durationMins: 90, price: 375 },
       { name: 'SME growth strategy', description: 'A practical 12-month growth plan for your business.', durationMins: 120, price: 480 },
     ],
+    availability: standardWeek,
     hourlyRate: 250,
     yearsExperience: 15,
     languages: ['English', 'Tok Pisin'],
@@ -152,6 +176,7 @@ export const consultants: Consultant[] = [
       { name: 'Small business bookkeeping set-up', description: 'Set up simple books and monthly routines.', durationMins: 90, price: 300 },
       { name: 'GST and IRC compliance check', description: 'Review your GST filings and fix any gaps.', durationMins: 60, price: 220 },
     ],
+    availability: standardWeek,
     hourlyRate: 200,
     yearsExperience: 9,
     languages: ['English', 'Tok Pisin', 'Motu'],
@@ -178,6 +203,7 @@ export const consultants: Consultant[] = [
       { name: 'Company registration (IPA)', description: 'Register and set up your company with the IPA.', durationMins: 60, price: 300 },
       { name: 'Customary land agreement advice', description: 'Advice on clan land use and lease agreements.', durationMins: 90, price: 500 },
     ],
+    availability: standardWeek,
     hourlyRate: 350,
     yearsExperience: 12,
     languages: ['English', 'Tok Pisin'],
@@ -204,6 +230,7 @@ export const consultants: Consultant[] = [
       { name: 'Cooperative set-up', description: 'Structure and register a growers cooperative.', durationMins: 90, price: 220 },
       { name: 'Export certification guidance', description: 'Steps to Fairtrade and organic certification.', durationMins: 60, price: 150 },
     ],
+    availability: fieldWeek,
     hourlyRate: 150,
     yearsExperience: 11,
     languages: ['English', 'Tok Pisin'],
@@ -230,6 +257,7 @@ export const consultants: Consultant[] = [
       { name: 'Cybersecurity review', description: 'Find and fix security risks in your systems.', durationMins: 90, price: 330 },
       { name: 'Cloud migration planning', description: 'Plan a move of files and email to the cloud.', durationMins: 60, price: 220 },
     ],
+    availability: standardWeek,
     hourlyRate: 220,
     yearsExperience: 8,
     languages: ['English'],
@@ -256,6 +284,7 @@ export const consultants: Consultant[] = [
       { name: 'Interview coaching', description: 'Practice interviews with honest feedback.', durationMins: 60, price: 120 },
       { name: 'HR policy pack', description: 'Leave, conduct and recruitment policies for small teams.', durationMins: 120, price: 260 },
     ],
+    availability: eveningWeek,
     hourlyRate: 120,
     yearsExperience: 6,
     languages: ['English', 'Tok Pisin'],
@@ -281,6 +310,7 @@ export const consultants: Consultant[] = [
       { name: 'Guesthouse marketing plan', description: 'Reach more visitors online and through agents.', durationMins: 90, price: 270 },
       { name: 'Tour pricing review', description: 'Set prices that cover costs and stay competitive.', durationMins: 60, price: 180 },
     ],
+    availability: standardWeek,
     hourlyRate: 180,
     yearsExperience: 7,
     languages: ['English', 'Tok Pisin', 'Kuanua'],
@@ -306,6 +336,7 @@ export const consultants: Consultant[] = [
       { name: 'Workplace wellbeing plan', description: 'A health and wellbeing program for your staff.', durationMins: 90, price: 300 },
       { name: 'Community health program design', description: 'Design and evaluation for NGO health programs.', durationMins: 120, price: 400 },
     ],
+    availability: standardWeek,
     hourlyRate: 200,
     yearsExperience: 14,
     languages: ['English', 'Tok Pisin'],
@@ -331,6 +362,7 @@ export const consultants: Consultant[] = [
       { name: 'Family budget plan', description: 'A realistic household budget and savings plan.', durationMins: 60, price: 130 },
       { name: 'Superannuation check-up', description: 'Understand and grow your super balance.', durationMins: 60, price: 130 },
     ],
+    availability: standardWeek,
     hourlyRate: 130,
     yearsExperience: 4,
     languages: ['English', 'Tok Pisin'],

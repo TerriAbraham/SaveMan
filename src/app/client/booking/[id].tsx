@@ -1,0 +1,121 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Avatar } from '@/components/avatar';
+import { modeMeta } from '@/components/booking-card';
+import { BookingStatusPill, bookingStatusMeta } from '@/components/booking-status';
+import { Icon, type IconName } from '@/components/icon';
+import { ScreenHeader } from '@/components/screen-header';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
+import { useData } from '@/context/data-context';
+import { isUpcoming } from '@/utils/availability';
+import { formatTime } from '@/utils/dates';
+import { formatDate, formatDuration, formatKina } from '@/utils/format';
+
+export default function BookingDetailScreen() {
+  const { id, justBooked } = useLocalSearchParams<{ id: string; justBooked?: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { user, users } = useAuth();
+  const { bookings, cancelBooking } = useData();
+
+  const booking = bookings.find((b) => b.id === id && b.clientId === user?.id);
+  const consultant = users.find((u) => u.id === booking?.consultantId);
+
+  if (!booking || !consultant || consultant.role !== 'consultant') {
+    return (
+      <View className="flex-1 bg-sand">
+        <ScreenHeader title="Booking" fallbackHref="/client/bookings" />
+        <View className="flex-1 items-center justify-center p-6">
+          <Text className="text-center text-body text-fg-muted">This booking could not be found.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const status = bookingStatusMeta[booking.status];
+  const canCancel = isUpcoming(booking);
+  const mode = modeMeta[booking.mode];
+
+  function confirmCancel() {
+    Alert.alert('Cancel this booking?', 'The consultant will be told the session is cancelled.', [
+      { text: 'Keep booking', style: 'cancel' },
+      { text: 'Cancel booking', style: 'destructive', onPress: () => cancelBooking(booking!.id) },
+    ]);
+  }
+
+  return (
+    <View className="flex-1 bg-sand">
+      <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/client/bookings" />
+      <ScrollView contentContainerClassName="gap-4 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        {justBooked === '1' && booking.status === 'pending' && (
+          <View className="flex-row items-start gap-3 rounded-card bg-forest-tint p-4">
+            <Icon name="check" size={24} color={colors.forest} />
+            <View className="flex-1 gap-0.5">
+              <Text className="text-heading text-forest">Booking request sent</Text>
+              <Text className="text-body text-fg">
+                {consultant.name} will confirm your session. You can find it any time under Bookings.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+          <BookingStatusPill status={booking.status} />
+          <Text className="text-body text-fg-muted">{status.explain}</Text>
+
+          <Pressable
+            onPress={() => router.push({ pathname: '/client/consultant/[id]', params: { id: consultant.id } })}
+            accessibilityRole="button"
+            className="flex-row items-center gap-3 border-t border-line pt-3 active:opacity-70">
+            <Avatar name={consultant.name} />
+            <View className="flex-1">
+              <Text className="text-heading text-fg">{consultant.name}</Text>
+              <Text className="text-body text-fg-muted">{consultant.title}</Text>
+            </View>
+            <Icon name="chevronRight" size={18} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
+        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+          <Text className="text-heading text-fg">Session</Text>
+          <Row icon="briefcase" label="Service" value={booking.serviceName} />
+          <Row icon="calendar" label="Date" value={formatDate(booking.date)} />
+          <Row icon="clock" label="Time" value={`${formatTime(booking.time)} · ${formatDuration(booking.durationMins)}`} />
+          <Row
+            icon={mode.icon}
+            label="Type"
+            value={booking.mode === 'in-person' ? `${mode.label}, ${consultant.location.city}` : mode.label}
+          />
+          {booking.note !== '' && <Row icon="note" label="Your note" value={booking.note} />}
+          <View className="flex-row items-center justify-between border-t border-line pt-3">
+            <Text className="text-body text-fg-muted">Price</Text>
+            <Text className="text-title text-fg">{formatKina(booking.price)}</Text>
+          </View>
+        </View>
+
+        <Button
+          title={`Message ${consultant.name.replace(/^Dr\.?\s+/, '').split(' ')[0]}`}
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: consultant.id } })}
+        />
+        {canCancel && <Button title="Cancel booking" variant="ghost" onPress={confirmCancel} />}
+      </ScrollView>
+    </View>
+  );
+}
+
+function Row({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+  return (
+    <View className="flex-row items-start gap-3">
+      <Icon name={icon} size={18} color={colors.textMuted} />
+      <View className="flex-1">
+        <Text className="text-caption text-fg-muted">{label}</Text>
+        <Text className="text-body text-fg">{value}</Text>
+      </View>
+    </View>
+  );
+}

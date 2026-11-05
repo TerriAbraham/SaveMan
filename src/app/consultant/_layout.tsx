@@ -1,27 +1,10 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { Icon } from '@/components/icon';
-import { tabScreenOptions } from '@/constants/navigation';
+import { colors } from '@/constants/theme';
+
+// Tabs sit at the bottom of the stack; detail screens like a chat push over them.
+export const unstable_settings = { anchor: '(tabs)' };
 
 export default function ConsultantLayout() {
-  return (
-    <Tabs screenOptions={tabScreenOptions}>
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <Icon name="dashboard" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{ title: 'Schedule', headerTitle: 'My schedule', tabBarIcon: ({ color }) => <Icon name="clock" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{ title: 'Messages', tabBarIcon: ({ color }) => <Icon name="chat" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: 'Profile', headerTitle: 'My profile', tabBarIcon: ({ color }) => <Icon name="person" color={color} /> }}
-      />
-    </Tabs>
-  );
+  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.sand } }} />;
 }

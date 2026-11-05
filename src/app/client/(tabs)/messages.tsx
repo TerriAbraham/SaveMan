@@ -1,12 +1,13 @@
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { useRouter } from 'expo-router';
+
+import { ConversationList } from '@/components/conversation-list';
 
 export default function ClientMessagesScreen() {
+  const router = useRouter();
   return (
-    <PlaceholderScreen
-      icon="chat"
-      title="Messages"
-      phase={2}
-      features={['Conversations with your consultants', 'Start a chat from any consultant profile']}
+    <ConversationList
+      onOpen={(consultantId) => router.push({ pathname: '/client/chat/[id]', params: { id: consultantId } })}
+      emptyText="Open a consultant's profile and tap Message to ask a question."
     />
   );
 }

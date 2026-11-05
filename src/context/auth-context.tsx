@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-import { places, seedUsers } from '@/data/users';
+import { places, seedUsers, standardWeek } from '@/data/users';
 import type { Client, Consultant, User } from '@/data/types';
 
 export interface SignUpInput {
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bio: '',
         expertise: [],
         services: [],
+        availability: standardWeek,
         hourlyRate: 0,
         yearsExperience: 0,
         languages: ['English'],
