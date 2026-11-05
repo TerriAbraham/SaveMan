@@ -15,12 +15,16 @@ export interface SignUpInput {
   categoryId?: string;
 }
 
+/** Fields a consultant can change from Edit profile. */
+export type ConsultantProfileChanges = Partial<Pick<Consultant, 'title' | 'bio' | 'hourlyRate' | 'location'>>;
+
 interface AuthContextValue {
   user: User | null;
   users: User[];
   signIn: (email: string, password: string) => string | null;
   signUp: (input: SignUpInput) => string | null;
   signOut: () => void;
+  updateConsultant: (id: string, changes: ConsultantProfileChanges) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (input.role === 'client') {
       created = { ...base, role: 'client', city: input.city } satisfies Client;
     } else {
-      const location = Object.values(places).find((p) => p.city === input.city) ?? places.portMoresby;
+      // Start at the chosen town centre; the consultant can set their exact office pin later.
+      const place = Object.values(places).find((p) => p.city === input.city) ?? places.portMoresby;
+      const location = { ...place, address: '' };
       created = {
         ...base,
         role: 'consultant',
@@ -90,8 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserId(null);
   }
 
+  function updateConsultant(id: string, changes: ConsultantProfileChanges) {
+    setUsers((prev) => prev.map((u) => (u.id === id && u.role === 'consultant' ? { ...u, ...changes } : u)));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, users, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, users, signIn, signUp, signOut, updateConsultant }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

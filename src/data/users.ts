@@ -1,4 +1,4 @@
-import type { Admin, Client, Consultant, Location, User, WeeklyAvailability } from './types';
+import type { Admin, Client, Consultant, Place, User, WeeklyAvailability } from './types';
 
 const office = [
   { start: '09:00', end: '12:00' },
@@ -33,7 +33,7 @@ const places = {
   kokopo: { city: 'Kokopo', province: 'East New Britain', latitude: -4.342, longitude: 152.269 },
   wewak: { city: 'Wewak', province: 'East Sepik', latitude: -3.5534, longitude: 143.6268 },
   alotau: { city: 'Alotau', province: 'Milne Bay', latitude: -10.3157, longitude: 150.459 },
-} satisfies Record<string, Location>;
+} satisfies Record<string, Place>;
 
 export const cities = Object.values(places).map((p) => p.city);
 
@@ -153,7 +153,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 250,
     yearsExperience: 15,
     languages: ['English', 'Tok Pisin'],
-    location: places.portMoresby,
+    location: { ...places.portMoresby, address: 'Waigani Drive, Waigani', latitude: -9.4296, longitude: 147.1874 },
     verification: 'verified',
     rating: 4.8,
     reviewCount: 42,
@@ -180,7 +180,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 200,
     yearsExperience: 9,
     languages: ['English', 'Tok Pisin', 'Motu'],
-    location: places.portMoresby,
+    location: { ...places.portMoresby, address: 'Boroko Drive, Boroko', latitude: -9.4669, longitude: 147.1956 },
     verification: 'verified',
     rating: 4.9,
     reviewCount: 67,
@@ -207,7 +207,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 350,
     yearsExperience: 12,
     languages: ['English', 'Tok Pisin'],
-    location: places.lae,
+    location: { ...places.lae, address: 'Second Street, Top Town', latitude: -6.7314, longitude: 146.9969 },
     verification: 'verified',
     rating: 4.7,
     reviewCount: 31,
@@ -234,7 +234,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 150,
     yearsExperience: 11,
     languages: ['English', 'Tok Pisin'],
-    location: places.mountHagen,
+    location: { ...places.mountHagen, address: 'Hagen Drive, Town', latitude: -5.8604, longitude: 144.2318 },
     verification: 'verified',
     rating: 4.6,
     reviewCount: 19,
@@ -261,7 +261,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 220,
     yearsExperience: 8,
     languages: ['English'],
-    location: places.madang,
+    location: { ...places.madang, address: 'Modilon Road, Madang Town', latitude: -5.2242, longitude: 145.7949 },
     verification: 'verified',
     rating: 4.5,
     reviewCount: 24,
@@ -288,7 +288,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 120,
     yearsExperience: 6,
     languages: ['English', 'Tok Pisin'],
-    location: places.goroka,
+    location: { ...places.goroka, address: 'Elizabeth Street, Goroka Town', latitude: -6.0817, longitude: 145.3895 },
     verification: 'verified',
     rating: 4.8,
     reviewCount: 38,
@@ -314,7 +314,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 180,
     yearsExperience: 7,
     languages: ['English', 'Tok Pisin', 'Kuanua'],
-    location: places.kokopo,
+    location: { ...places.kokopo, address: 'Williams Road, Kokopo', latitude: -4.3437, longitude: 152.2672 },
     verification: 'pending',
     rating: 0,
     reviewCount: 0,
@@ -340,7 +340,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 200,
     yearsExperience: 14,
     languages: ['English', 'Tok Pisin'],
-    location: places.wewak,
+    location: { ...places.wewak, address: 'Boram Road, Wewak', latitude: -3.559, longitude: 143.6403 },
     verification: 'pending',
     rating: 0,
     reviewCount: 0,
@@ -366,7 +366,7 @@ export const consultants: Consultant[] = [
     hourlyRate: 130,
     yearsExperience: 4,
     languages: ['English', 'Tok Pisin'],
-    location: places.alotau,
+    location: { ...places.alotau, address: 'Charles Abel Road, Alotau', latitude: -10.3109, longitude: 150.4566 },
     verification: 'rejected',
     rating: 0,
     reviewCount: 0,

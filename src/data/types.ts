@@ -4,11 +4,17 @@ export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 
 export type AccountStatus = 'active' | 'suspended';
 
-export interface Location {
+/** A PNG town or city centre, used for filters and as a starting point when choosing a location. */
+export interface Place {
   city: string;
   province: string;
   latitude: number;
   longitude: number;
+}
+
+/** Where a consultant meets clients: nearest centre plus their exact office pin. */
+export interface Location extends Place {
+  address: string; // street / suburb, shown to clients
 }
 
 interface BaseUser {

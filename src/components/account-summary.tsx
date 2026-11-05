@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -17,8 +18,8 @@ const verificationStyles: Record<VerificationStatus, { label: string; badge: str
   rejected: { label: 'Verification rejected', badge: 'bg-red-tint', text: 'text-red-dark', icon: 'hourglass', tint: colors.redDark },
 };
 
-/** Phase 1 profile tab: who is signed in, plus sign out. */
-export function AccountSummary() {
+/** Profile tab: who is signed in, any role-specific sections (`children`), then sign out. */
+export function AccountSummary({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
   if (!user) return null;
 
@@ -48,6 +49,8 @@ export function AccountSummary() {
           {user.role === 'consultant' && <Row icon="briefcase" text={[user.title, category].filter(Boolean).join(' · ')} />}
         </View>
       </View>
+
+      {children}
 
       <Button title="Log out" variant="outline" onPress={signOut} />
     </ScrollView>

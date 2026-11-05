@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/avatar';
 import { PatternBand } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
+import { LocationCard } from '@/components/location-card';
 import { RatingSummary, Stars } from '@/components/rating';
 import { Button } from '@/components/ui/button';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -113,6 +114,8 @@ export default function ConsultantProfileScreen() {
               ))}
             </View>
           </Section>
+
+          <LocationCard location={c.location} name={c.name} />
 
           <ReviewsSection consultantId={c.id} rating={c.rating} reviewCount={c.reviewCount} />
         </View>

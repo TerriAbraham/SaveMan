@@ -33,6 +33,12 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SaveMan uses your location to place your office pin on the map."
+        }
       ]
     ],
     "experiments": {
