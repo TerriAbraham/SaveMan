@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ const highlights: { icon: IconName; title: string; text: string }[] = [
 ];
 
 export default function WelcomeScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (

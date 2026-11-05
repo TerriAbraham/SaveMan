@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -18,6 +18,7 @@ type Field = 'name' | 'email' | 'phone' | 'city' | 'title' | 'categoryId' | 'pas
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const { signUp } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>('client');
   const [form, setForm] = useState<Record<Field, string>>({

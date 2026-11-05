@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { colors, spacing, type } from '@/constants/theme';
 
 /** Shared frame for the login and sign-up screens. */
 export function AuthScreen({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
