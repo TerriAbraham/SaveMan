@@ -1,0 +1,24 @@
+import { useAuth } from '@/context/auth-context';
+import { reviews } from '@/data/activity';
+import type { Consultant } from '@/data/types';
+
+/** Consultants clients can see: verified by the admin and not suspended. */
+export function usePublicConsultants() {
+  const { users } = useAuth();
+  return users.filter(
+    (u): u is Consultant => u.role === 'consultant' && u.verification === 'verified' && u.status === 'active',
+  );
+}
+
+export function usePublicConsultant(id: string | undefined) {
+  return usePublicConsultants().find((c) => c.id === id) ?? null;
+}
+
+/** Reviews for a consultant, newest first, with the reviewer's name attached. */
+export function useConsultantReviews(consultantId: string) {
+  const { users } = useAuth();
+  return reviews
+    .filter((r) => r.consultantId === consultantId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((r) => ({ ...r, reviewerName: users.find((u) => u.id === r.clientId)?.name ?? 'SaveMan client' }));
+}

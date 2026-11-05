@@ -27,6 +27,11 @@ const icons = {
   back: { ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' },
   logout: { ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' },
   hourglass: { ios: 'hourglass', android: 'hourglass_top', web: 'hourglass_top' },
+  star: { ios: 'star.fill', android: 'star', web: 'star' },
+  close: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
+  globe: { ios: 'globe', android: 'language', web: 'language' },
+  award: { ios: 'rosette', android: 'workspace_premium', web: 'workspace_premium' },
+  chevronRight: { ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' },
 } satisfies Record<string, SymbolName>;
 
 export type IconName = keyof typeof icons;

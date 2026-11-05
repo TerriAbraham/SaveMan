@@ -1,5 +1,6 @@
 import { ScrollView, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { PatternBand } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { categories } from '@/data/categories';
 import type { VerificationStatus } from '@/data/types';
-import { initials } from '@/utils/format';
 
 const roleLabels = { client: 'Client', consultant: 'Consultant', admin: 'Administrator' } as const;
 
@@ -30,10 +30,8 @@ export function AccountSummary() {
     <ScrollView contentContainerClassName="gap-4 p-4">
       <View className="overflow-hidden rounded-card border border-line bg-surface">
         <View className="items-center gap-1 p-6">
-          <View className="mb-2 h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-gold bg-ink">
-            <Text className="text-[26px] font-extrabold text-on-dark">{initials(user.name)}</Text>
-          </View>
-          <Text className="text-title text-fg">{user.name}</Text>
+          <Avatar name={user.name} size="lg" />
+          <Text className="mt-2 text-title text-fg">{user.name}</Text>
           <Text className="text-body text-fg-muted">{roleLabels[user.role]}</Text>
           {verification && (
             <View className={`mt-2 flex-row items-center gap-1 rounded-full px-3 py-1 ${verification.badge}`}>

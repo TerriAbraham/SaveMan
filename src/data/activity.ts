@@ -1,6 +1,7 @@
 import type { Booking, Conversation, Message, Review } from './types';
+import { consultants } from './users';
 
-export const bookings: Booking[] = [
+const recentBookings: Booking[] = [
   {
     id: 'b-1',
     clientId: 'u-client-1',
@@ -75,7 +76,7 @@ export const bookings: Booking[] = [
   },
 ];
 
-export const reviews: Review[] = [
+const recentReviews: Review[] = [
   {
     id: 'r-1',
     bookingId: 'b-3',
@@ -104,6 +105,58 @@ export const reviews: Review[] = [
     createdAt: '2026-10-02',
   },
 ];
+
+// Older completed sessions that were reviewed. Each one becomes a completed booking plus its review.
+const pastSessions: {
+  id: string;
+  clientId: string;
+  consultantId: string;
+  date: string;
+  mode: Booking['mode'];
+  rating: number;
+  comment: string;
+}[] = [
+  { id: 'h-1', clientId: 'u-client-5', consultantId: 'u-cons-1', date: '2026-09-12', mode: 'in-person', rating: 5, comment: 'Dr. Kila helped us turn an idea into a bankable plan. The bank approved our loan.' },
+  { id: 'h-2', clientId: 'u-client-7', consultantId: 'u-cons-1', date: '2026-08-03', mode: 'video', rating: 4, comment: 'Very knowledgeable. Session ran a little over time but worth it.' },
+  { id: 'h-3', clientId: 'u-client-5', consultantId: 'u-cons-2', date: '2026-10-05', mode: 'in-person', rating: 5, comment: 'Joanne sorted out three years of messy receipts. Stress free tax time!' },
+  { id: 'h-4', clientId: 'u-client-6', consultantId: 'u-cons-2', date: '2026-09-20', mode: 'video', rating: 5, comment: 'Clear explanations of GST. I finally understand my obligations.' },
+  { id: 'h-5', clientId: 'u-client-1', consultantId: 'u-cons-2', date: '2026-07-14', mode: 'phone', rating: 4, comment: 'Quick and helpful answers on my personal return.' },
+  { id: 'h-6', clientId: 'u-client-7', consultantId: 'u-cons-3', date: '2026-09-02', mode: 'in-person', rating: 5, comment: 'Samuel explained our clan land lease in Tok Pisin for the elders. Excellent.' },
+  { id: 'h-7', clientId: 'u-client-4', consultantId: 'u-cons-4', date: '2026-10-11', mode: 'in-person', rating: 5, comment: 'Lynette visited our block and our coffee grade improved the next harvest.' },
+  { id: 'h-8', clientId: 'u-client-4', consultantId: 'u-cons-4', date: '2026-06-08', mode: 'phone', rating: 4, comment: 'Good advice on forming a cooperative.' },
+  { id: 'h-9', clientId: 'u-client-6', consultantId: 'u-cons-5', date: '2026-10-18', mode: 'in-person', rating: 5, comment: 'Kevin set up our school network in one day. Fast internet in every classroom now.' },
+  { id: 'h-10', clientId: 'u-client-2', consultantId: 'u-cons-5', date: '2026-08-25', mode: 'video', rating: 4, comment: 'Thorough security review with a clear list of fixes.' },
+  { id: 'h-11', clientId: 'u-client-5', consultantId: 'u-cons-6', date: '2026-09-28', mode: 'video', rating: 5, comment: 'The mock interview was tough but I felt so prepared on the day.' },
+];
+
+const pastBookings: Booking[] = pastSessions.map((s) => {
+  const consultant = consultants.find((c) => c.id === s.consultantId);
+  return {
+    id: `b-${s.id}`,
+    clientId: s.clientId,
+    consultantId: s.consultantId,
+    date: s.date,
+    time: '10:00',
+    durationMins: 60,
+    mode: s.mode,
+    note: '',
+    status: 'completed',
+    price: consultant?.hourlyRate ?? 0,
+  };
+});
+
+const pastReviews: Review[] = pastSessions.map((s) => ({
+  id: `r-${s.id}`,
+  bookingId: `b-${s.id}`,
+  clientId: s.clientId,
+  consultantId: s.consultantId,
+  rating: s.rating,
+  comment: s.comment,
+  createdAt: s.date,
+}));
+
+export const bookings: Booking[] = [...recentBookings, ...pastBookings];
+export const reviews: Review[] = [...recentReviews, ...pastReviews];
 
 export const conversations: Conversation[] = [
   { id: 'c-1', clientId: 'u-client-1', consultantId: 'u-cons-1' },

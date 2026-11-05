@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         categoryId: input.categoryId ?? '',
         bio: '',
         expertise: [],
+        services: [],
         hourlyRate: 0,
         yearsExperience: 0,
         languages: ['English'],

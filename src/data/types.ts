@@ -26,12 +26,20 @@ export interface Client extends BaseUser {
   city: string;
 }
 
+export interface Service {
+  name: string;
+  description: string;
+  durationMins: number;
+  price: number; // PGK (Kina)
+}
+
 export interface Consultant extends BaseUser {
   role: 'consultant';
   title: string;
   categoryId: string;
   bio: string;
   expertise: string[];
+  services: Service[];
   hourlyRate: number; // PGK (Kina)
   yearsExperience: number;
   languages: string[];
