@@ -19,7 +19,7 @@ export function useConsultantReviews(consultantId: string) {
   const { users } = useAuth();
   const { reviews } = useData();
   return reviews
-    .filter((r) => r.consultantId === consultantId)
+    .filter((r) => r.consultantId === consultantId && !r.removedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map((r) => ({ ...r, reviewerName: users.find((u) => u.id === r.clientId)?.name ?? 'SaveMan client' }));
 }

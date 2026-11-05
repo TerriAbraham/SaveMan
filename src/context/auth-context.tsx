@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { places, seedUsers, standardWeek } from '@/data/users';
-import type { Client, Consultant, User } from '@/data/types';
+import type { AccountStatus, Client, Consultant, User, VerificationStatus } from '@/data/types';
+import { adjustAverage } from '@/utils/ratings';
 
 export interface SignUpInput {
   role: 'client' | 'consultant';
@@ -27,7 +28,11 @@ interface AuthContextValue {
   signUp: (input: SignUpInput) => string | null;
   signOut: () => void;
   updateConsultant: (id: string, changes: ConsultantProfileChanges) => void;
-  recordRating: (consultantId: string, rating: number) => void;
+  adjustRating: (consultantId: string, rating: number, change: 1 | -1) => void;
+  /** Admin only. Returns an error message, or null on success. */
+  setVerification: (consultantId: string, verification: VerificationStatus) => string | null;
+  /** Admin only. Returns an error message, or null on success. */
+  setAccountStatus: (userId: string, status: AccountStatus) => string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -103,21 +108,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsers((prev) => prev.map((u) => (u.id === id && u.role === 'consultant' ? { ...u, ...changes } : u)));
   }
 
-  /** Fold a new review into the consultant's average rating and count. */
-  function recordRating(consultantId: string, rating: number) {
+  /** Add a review to (1) or take one out of (-1) a consultant's average rating and count. */
+  function adjustRating(consultantId: string, rating: number, change: 1 | -1) {
     setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id !== consultantId || u.role !== 'consultant') return u;
-        const reviewCount = u.reviewCount + 1;
-        // Keep one decimal place, as shown in the app.
-        const average = Math.round(((u.rating * u.reviewCount + rating) / reviewCount) * 10) / 10;
-        return { ...u, rating: average, reviewCount };
-      }),
+      prev.map((u) =>
+        u.id === consultantId && u.role === 'consultant'
+          ? { ...u, ...adjustAverage(u.rating, u.reviewCount, rating, change) }
+          : u,
+      ),
     );
   }
 
+  // Admin actions. They check the signed-in role themselves, not just rely on the screens being admin-only.
+
+  function setVerification(consultantId: string, verification: VerificationStatus) {
+    if (user?.role !== 'admin') return 'Only an administrator can do this.';
+    if (!users.some((u) => u.id === consultantId && u.role === 'consultant')) return 'Consultant not found.';
+    setUsers((prev) => prev.map((u) => (u.id === consultantId && u.role === 'consultant' ? { ...u, verification } : u)));
+    return null;
+  }
+
+  function setAccountStatus(userId: string, status: AccountStatus) {
+    if (user?.role !== 'admin') return 'Only an administrator can do this.';
+    const target = users.find((u) => u.id === userId);
+    if (!target) return 'User not found.';
+    if (target.role === 'admin') return 'Administrator accounts can’t be suspended here.';
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status } : u)));
+    return null;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, users, signIn, signUp, signOut, updateConsultant, recordRating }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        users,
+        signIn,
+        signUp,
+        signOut,
+        updateConsultant,
+        adjustRating,
+        setVerification,
+        setAccountStatus,
+      }}>
       {children}
     </AuthContext.Provider>
   );

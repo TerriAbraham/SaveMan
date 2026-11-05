@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { BookingCard } from '@/components/booking-card';
 import { Icon } from '@/components/icon';
+import { SmallButton } from '@/components/ui/small-button';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
@@ -70,7 +71,7 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
               booking={b}
               personName={clientName(b)}
               onPress={() => open(b)}
-              footer={<ActionButton label="Mark completed" icon="check" onPress={() => actions.complete(b)} />}
+              footer={<SmallButton label="Mark completed" icon="check" onPress={() => actions.complete(b)} />}
             />
           ))}
         </Section>
@@ -86,11 +87,11 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
             footer={
               <View className="flex-row gap-2">
                 <View className="flex-1">
-                  <ActionButton label="Decline" variant="outline" onPress={() => actions.decline(b, clientName(b))} />
+                  <SmallButton label="Decline" variant="outline" onPress={() => actions.decline(b, clientName(b))} />
                 </View>
                 <View className="flex-1">
                   {canAccept(b) ? (
-                    <ActionButton label="Accept" icon="check" onPress={() => actions.accept(b)} />
+                    <SmallButton label="Accept" icon="check" onPress={() => actions.accept(b)} />
                   ) : (
                     <Text className="py-2.5 text-center text-caption text-fg-muted">Start time has passed</Text>
                   )}
@@ -144,31 +145,5 @@ function Section({ title, hint, empty, children }: { title: string; hint?: strin
         <Text className="rounded-xl border border-dashed border-line p-4 text-center text-body text-fg-muted">{empty}</Text>
       )}
     </View>
-  );
-}
-
-/** Compact button for use inside a card (the full-size Button is too tall here). */
-function ActionButton({
-  label,
-  icon,
-  variant = 'primary',
-  onPress,
-}: {
-  label: string;
-  icon?: 'check';
-  variant?: 'primary' | 'outline';
-  onPress: () => void;
-}) {
-  const primary = variant === 'primary';
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className={`flex-row items-center justify-center gap-1.5 rounded-lg border-[1.5px] py-2.5 active:opacity-80 ${
-        primary ? 'border-red bg-red' : 'border-line bg-surface'
-      }`}>
-      {icon && <Icon name={icon} size={16} color={primary ? colors.textOnDark : colors.ink} />}
-      <Text className={`text-label ${primary ? 'text-on-dark' : 'text-fg'}`}>{label}</Text>
-    </Pressable>
   );
 }

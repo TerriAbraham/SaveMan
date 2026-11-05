@@ -48,7 +48,7 @@ export default function ConsultantBookingScreen() {
   }
 
   const mode = modeMeta[booking.mode];
-  const review = reviews.find((r) => r.bookingId === booking.id);
+  const review = reviews.find((r) => r.bookingId === booking.id && !r.removedAt);
   const confirmedNotStarted = booking.status === 'confirmed' && !hasStarted(booking);
 
   return (

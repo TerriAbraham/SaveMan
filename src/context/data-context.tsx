@@ -21,6 +21,10 @@ interface DataContextValue {
   respondToBooking: (bookingId: string, consultantId: string, response: BookingResponse) => string | null;
   /** Returns an error message, or null on success. */
   addReview: (input: NewReview) => string | null;
+  /** Admin only: hide a review and take it out of the rating. Returns an error message, or null. */
+  removeReview: (reviewId: string) => string | null;
+  /** Admin only: undo a removal. Returns an error message, or null. */
+  restoreReview: (reviewId: string) => string | null;
   sendMessage: (input: { clientId: string; consultantId: string; senderId: string; text: string }) => void;
   markConversationRead: (conversationId: string, readerId: string) => void;
 }
@@ -33,7 +37,7 @@ const newId = (prefix: string) => `${prefix}-new-${Date.now()}-${nextId++}`;
 // In-memory only, like auth: changes reset when the app reloads.
 // It sits above the auth screens so data survives logging out and in as another role.
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { recordRating } = useAuth();
+  const { user, adjustRating } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [reviews, setReviews] = useState<Review[]>(seedReviews);
   const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
@@ -84,7 +88,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       createdAt: toLocalDateTime(new Date()).slice(0, 10),
     };
     setReviews((prev) => [...prev, review]);
-    recordRating(booking.consultantId, rating);
+    adjustRating(booking.consultantId, rating, 1);
+    return null;
+  }
+
+  function moderateReview(reviewId: string, remove: boolean) {
+    if (user?.role !== 'admin') return 'Only an administrator can do this.';
+    const review = reviews.find((r) => r.id === reviewId);
+    if (!review) return 'Review not found.';
+    if (Boolean(review.removedAt) === remove) return remove ? 'This review is already removed.' : 'This review is already visible.';
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, removedAt: remove ? toLocalDateTime(new Date()) : undefined } : r)),
+    );
+    adjustRating(review.consultantId, review.rating, remove ? -1 : 1);
     return null;
   }
 
@@ -128,6 +144,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         cancelBooking,
         respondToBooking,
         addReview,
+        removeReview: (id) => moderateReview(id, true),
+        restoreReview: (id) => moderateReview(id, false),
         sendMessage,
         markConversationRead,
       }}>

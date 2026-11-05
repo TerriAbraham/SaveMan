@@ -102,6 +102,8 @@ export interface Review {
   rating: number; // 1-5
   comment: string;
   createdAt: string;
+  /** Set when an admin removes the review. Kept (not deleted) so it can be restored and can't be re-posted. */
+  removedAt?: string;
 }
 
 export interface Message {

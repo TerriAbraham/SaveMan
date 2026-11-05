@@ -107,6 +107,11 @@ export default function BookingDetailScreen() {
             <Text className="text-heading text-fg">Your review</Text>
             <Stars rating={myReview.rating} size={16} />
             {myReview.comment !== '' && <Text className="text-body text-fg">{myReview.comment}</Text>}
+            {myReview.removedAt && (
+              <Text className="text-caption text-red-dark">
+                Removed by SaveMan moderators for breaking the review guidelines. It isn’t shown on the profile.
+              </Text>
+            )}
           </View>
         ) : (
           reviewable && (

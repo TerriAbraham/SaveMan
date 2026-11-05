@@ -174,6 +174,8 @@ const pastSessions: {
   { id: 'h-9', clientId: 'u-client-6', consultantId: 'u-cons-5', date: '2026-10-18', mode: 'in-person', rating: 5, comment: 'Kevin set up our school network in one day. Fast internet in every classroom now.' },
   { id: 'h-10', clientId: 'u-client-2', consultantId: 'u-cons-5', date: '2026-08-25', mode: 'video', rating: 4, comment: 'Thorough security review with a clear list of fixes.' },
   { id: 'h-11', clientId: 'u-client-5', consultantId: 'u-cons-6', date: '2026-09-28', mode: 'video', rating: 5, comment: 'The mock interview was tough but I felt so prepared on the day.' },
+  // Breaks the review rules (personal attack, not about the session), for testing admin moderation.
+  { id: 'h-12', clientId: 'u-client-2', consultantId: 'u-cons-2', date: '2026-11-02', mode: 'phone', rating: 1, comment: 'SCAMMER!!! Do not trust this woman, call 7xxx xxxx and tell her what you think of her.' },
 ];
 
 const pastBookings: Booking[] = pastSessions.map((s) => {
