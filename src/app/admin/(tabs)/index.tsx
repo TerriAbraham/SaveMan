@@ -35,7 +35,7 @@ export default function AdminOverviewScreen() {
         <Tile icon="star" label="Reviews" value={stats.reviews} detail={`${stats.removedReviews} removed`} />
       </View>
 
-      <Text className="mt-2 text-heading text-fg">Needs attention</Text>
+      <Text className="mt-2 text-heading text-fg">Manage</Text>
       <AttentionRow
         icon="verified"
         text={
@@ -52,6 +52,7 @@ export default function AdminOverviewScreen() {
         href="/admin/users"
       />
       <AttentionRow icon="star" text="Check recent reviews" href="/admin/reviews" />
+      <AttentionRow icon="briefcase" text="Manage service categories" href="/admin/categories" />
 
       <Text className="mt-2 text-heading text-fg">Bookings by status</Text>
       <View className="gap-2.5 rounded-card border border-line bg-surface p-4">

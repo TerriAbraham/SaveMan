@@ -54,7 +54,7 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
     const next = validateService(draft, consultant.services, existing?.id ?? null);
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    updateConsultant(consultant.id, {
+    updateConsultant({
       services: upsertService(consultant.services, draft, existing?.id ?? null, `s-new-${Date.now()}`),
     });
     router.back();
@@ -74,7 +74,7 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            updateConsultant(consultant.id, { services: consultant.services.filter((s) => s.id !== existing.id) });
+            updateConsultant({ services: consultant.services.filter((s) => s.id !== existing.id) });
             router.back();
           },
         },

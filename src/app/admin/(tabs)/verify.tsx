@@ -7,7 +7,7 @@ import { SmallButton } from '@/components/ui/small-button';
 import { UserBadges } from '@/components/user-badges';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import type { Consultant } from '@/data/types';
 import { useAdminActions } from '@/hooks/use-admin-actions';
 import { formatDate, formatKina } from '@/utils/format';
@@ -48,6 +48,7 @@ export default function VerificationQueueScreen() {
 }
 
 function ApplicantCard({ consultant: c }: { consultant: Consultant }) {
+  const { categories } = useData();
   const router = useRouter();
   const actions = useAdminActions();
   const category = categories.find((cat) => cat.id === c.categoryId)?.name ?? 'No category';

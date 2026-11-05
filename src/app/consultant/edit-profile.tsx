@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TextField } from '@/components/ui/text-field';
 import { useAuth } from '@/context/auth-context';
+import { useData } from '@/context/data-context';
 import type { Consultant } from '@/data/types';
 import { places } from '@/data/users';
 import { isInPNG, nearestPlace, type Coordinate } from '@/utils/geo';
@@ -24,8 +25,12 @@ export default function EditProfileScreen() {
 function EditProfileForm({ consultant }: { consultant: Consultant }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { updateConsultant } = useAuth();
+  const { updateConsultant, updateOwnProfile } = useAuth();
+  const { categories } = useData();
 
+  const [name, setName] = useState(consultant.name);
+  const [phone, setPhone] = useState(consultant.phone);
+  const [categoryId, setCategoryId] = useState(consultant.categoryId);
   const [title, setTitle] = useState(consultant.title);
   const [bio, setBio] = useState(consultant.bio);
   const [rate, setRate] = useState(consultant.hourlyRate ? String(consultant.hourlyRate) : '');
@@ -36,7 +41,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
   });
   const [mapActive, setMapActive] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [errors, setErrors] = useState<{ title?: string; rate?: string; pin?: string }>({});
+  const [errors, setErrors] = useState<{ contact?: string; title?: string; category?: string; rate?: string; pin?: string }>({});
 
   // City and province always follow the pin, so filters and the profile stay consistent.
   const centre = nearestPlace(pin);
@@ -72,6 +77,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     const next: typeof errors = {};
     const hourlyRate = Number(rate);
     if (title.trim().length < 3) next.title = 'Enter your professional title.';
+    if (!categories.some((c) => c.id === categoryId)) next.category = 'Choose your area of expertise.';
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || !Number.isInteger(hourlyRate)) {
       next.rate = 'Enter a whole number of Kina, e.g. 200.';
     }
@@ -79,8 +85,14 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    updateConsultant(consultant.id, {
+    const contactError = updateOwnProfile({ name, phone });
+    if (contactError) {
+      setErrors({ contact: contactError });
+      return;
+    }
+    updateConsultant({
       title: title.trim(),
+      categoryId,
       bio: bio.trim(),
       hourlyRate,
       location: { ...centre, address: address.trim(), latitude: pin.latitude, longitude: pin.longitude },
@@ -97,8 +109,24 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View className="gap-4 rounded-card border border-line bg-surface p-4">
+          <Text className="text-heading text-fg">Contact</Text>
+          <TextField label="Full name" icon="person" value={name} onChangeText={setName} autoComplete="name" />
+          <TextField label="Phone" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
+          {errors.contact && <Text className="text-caption text-red-dark">{errors.contact}</Text>}
+        </View>
+
+        <View className="gap-4 rounded-card border border-line bg-surface p-4">
           <Text className="text-heading text-fg">About you</Text>
           <TextField label="Professional title" icon="briefcase" value={title} onChangeText={setTitle} error={errors.title} />
+          <View className="gap-2">
+            <Text className="text-label text-fg">Area of expertise</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {categories.map((c) => (
+                <Chip key={c.id} label={c.name} selected={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
+              ))}
+            </View>
+            {errors.category && <Text className="text-caption text-red-dark">{errors.category}</Text>}
+          </View>
           <TextField
             label="Bio"
             value={bio}

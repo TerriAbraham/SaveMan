@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
 import { Chip } from '@/components/ui/chip';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SearchField } from '@/components/ui/search-field';
 import { UserBadges } from '@/components/user-badges';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
@@ -34,18 +36,8 @@ export default function AdminUsersScreen() {
   return (
     <View className="flex-1 bg-sand">
       <View className="gap-3 border-b border-line bg-surface py-3">
-        <View className="mx-4 min-h-[44px] flex-row items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-sand px-4">
-          <Icon name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Name, email or phone"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            accessibilityLabel="Search users"
-            className="flex-1 py-2 text-[16px] text-fg"
-          />
+        <View className="px-4">
+          <SearchField value={query} onChangeText={setQuery} placeholder="Name, email or phone" label="Search users" />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 px-4">
           {FILTERS.map((f) => (
@@ -78,7 +70,9 @@ export default function AdminUsersScreen() {
             <Icon name="chevronRight" size={16} color={colors.textMuted} />
           </Pressable>
         )}
-        ListEmptyComponent={<Text className="p-6 text-center text-body text-fg-muted">No users match.</Text>}
+        ListEmptyComponent={
+          <EmptyState icon="people" title="No users found" message="Try another name, or a different filter." />
+        }
       />
     </View>
   );

@@ -12,9 +12,9 @@ import { UserBadges } from '@/components/user-badges';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
-import { categories } from '@/data/categories';
 import type { Client, Consultant } from '@/data/types';
 import { useAdminActions } from '@/hooks/use-admin-actions';
+import { hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatKina } from '@/utils/format';
 
@@ -22,7 +22,7 @@ export default function AdminUserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { users } = useAuth();
-  const { bookings } = useData();
+  const { bookings, categories } = useData();
   const actions = useAdminActions();
 
   // Admin accounts aren't managed from here.
@@ -116,7 +116,7 @@ export default function AdminUserScreen() {
                   {user.role === 'client' ? `with ${otherName(b.consultantId)}` : `for ${otherName(b.clientId)}`} ·{' '}
                   {formatDate(b.date)} {formatTime(b.time)}
                 </Text>
-                <BookingStatusPill status={b.status} />
+                <BookingStatusPill status={b.status} started={hasStarted(b)} />
               </View>
             ))
           )}

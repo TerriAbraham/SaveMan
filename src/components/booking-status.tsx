@@ -25,8 +25,18 @@ export const bookingStatusMeta: Record<BookingStatus, { label: string; pill: str
   },
 };
 
-export function BookingStatusPill({ status }: { status: BookingStatus }) {
-  const meta = bookingStatusMeta[status];
+/**
+ * `started` = the session's start time has passed. A request nobody answered in time
+ * reads "Expired", and a confirmed session that happened reads "Awaiting completion".
+ */
+export function BookingStatusPill({ status, started }: { status: BookingStatus; started?: boolean }) {
+  const base = bookingStatusMeta[status];
+  const meta =
+    started && status === 'pending'
+      ? { ...base, label: 'Expired', pill: 'bg-red-tint', text: 'text-red-dark' }
+      : started && status === 'confirmed'
+        ? { ...base, label: 'Awaiting completion', pill: 'bg-gold-tint', text: 'text-ink-soft' }
+        : base;
   return (
     <View className={`self-start rounded-full px-2.5 py-1 ${meta.pill}`}>
       <Text className={`text-caption font-semibold ${meta.text}`}>{meta.label}</Text>

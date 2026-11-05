@@ -35,7 +35,7 @@ function AvailabilityEditor({ consultant }: { consultant: Consultant }) {
     const next = validateAvailability(week);
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    updateConsultant(consultant.id, { availability: normalizeAvailability(week) });
+    updateConsultant({ availability: normalizeAvailability(week) });
     Alert.alert('Availability saved', 'Clients will only see times inside these hours.');
   }
 

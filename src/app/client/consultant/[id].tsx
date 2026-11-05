@@ -11,11 +11,12 @@ import { RatingSummary, Stars } from '@/components/rating';
 import { Button } from '@/components/ui/button';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { colors } from '@/constants/theme';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import { useConsultantReviews, usePublicConsultant } from '@/hooks/use-directory';
 import { formatDate, formatDuration, formatKina } from '@/utils/format';
 
 export default function ConsultantProfileScreen() {
+  const { categories } = useData();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const consultant = usePublicConsultant(id);
@@ -85,8 +86,8 @@ export default function ConsultantProfileScreen() {
           <Section title="Services">
             {c.services.map((s, i) => (
               <Pressable
-                key={s.name}
-                onPress={() => router.push({ pathname: '/client/book/[id]', params: { id: c.id, service: String(i) } })}
+                key={s.id}
+                onPress={() => router.push({ pathname: '/client/book/[id]', params: { id: c.id, service: s.id } })}
                 accessibilityRole="button"
                 accessibilityLabel={`Book ${s.name}, ${formatKina(s.price)}`}
                 className={`gap-1 active:opacity-70 ${i > 0 ? 'border-t border-line pt-3' : ''}`}>

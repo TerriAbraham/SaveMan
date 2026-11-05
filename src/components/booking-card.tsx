@@ -6,6 +6,7 @@ import { BookingStatusPill } from '@/components/booking-status';
 import { Icon, type IconName } from '@/components/icon';
 import { colors } from '@/constants/theme';
 import type { Booking } from '@/data/types';
+import { hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatKina } from '@/utils/format';
 
@@ -53,7 +54,7 @@ export function BookingCard({
         <Detail icon={mode.icon} text={mode.label} />
       </View>
 
-      <BookingStatusPill status={booking.status} />
+      <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
       {footer}
     </Pressable>
   );

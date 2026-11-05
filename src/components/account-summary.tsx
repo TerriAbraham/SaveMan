@@ -7,7 +7,7 @@ import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import type { VerificationStatus } from '@/data/types';
 
 const roleLabels = { client: 'Client', consultant: 'Consultant', admin: 'Administrator' } as const;
@@ -20,6 +20,7 @@ const verificationStyles: Record<VerificationStatus, { label: string; badge: str
 
 /** Profile tab: who is signed in, any role-specific sections (`children`), then sign out. */
 export function AccountSummary({ children }: { children?: ReactNode }) {
+  const { categories } = useData();
   const { user, signOut } = useAuth();
   if (!user) return null;
 

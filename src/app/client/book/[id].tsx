@@ -28,14 +28,13 @@ export default function BookSessionScreen() {
   const { bookings, createBooking } = useData();
   const consultant = usePublicConsultant(id);
 
-  const [serviceIndex, setServiceIndex] = useState(() => {
-    const i = Number(service);
-    return Number.isInteger(i) && i >= 0 ? i : 0;
-  });
+  // `service` is a service id from the profile page; fall back to the first service.
+  const [serviceId, setServiceId] = useState<string | null>(service ?? null);
   const [mode, setMode] = useState<Booking['mode']>('in-person');
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   if (!consultant || !user || consultant.services.length === 0) {
     return (
@@ -48,7 +47,7 @@ export default function BookSessionScreen() {
     );
   }
 
-  const selectedService = consultant.services[Math.min(serviceIndex, consultant.services.length - 1)];
+  const selectedService = consultant.services.find((s) => s.id === serviceId) ?? consultant.services[0];
   const today = new Date();
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => {
     const iso = toISODate(addDays(today, i));
@@ -62,30 +61,27 @@ export default function BookSessionScreen() {
   const slots = getSlots(consultant, date, selectedService.durationMins, bookings);
   const timeStillFree = time !== null && slots.some((s) => s.time === time && s.available);
 
-  function chooseService(i: number) {
-    setServiceIndex(i);
+  function chooseService(id: string) {
+    setServiceId(id);
     setTime(null); // a longer service may not fit the old slot
+    setError(null);
   }
 
   function chooseDate(iso: string) {
     setPickedDate(iso);
     setTime(null);
+    setError(null);
   }
 
   function confirm() {
-    if (!consultant || !user || !time || !timeStillFree) return;
-    const booking = createBooking({
-      clientId: user.id,
-      consultantId: consultant.id,
-      serviceName: selectedService.name,
-      date,
-      time,
-      durationMins: selectedService.durationMins,
-      mode,
-      note: note.trim(),
-      price: selectedService.price,
-    });
-    router.replace({ pathname: '/client/booking/[id]', params: { id: booking.id, justBooked: '1' } });
+    if (!consultant || !time || !timeStillFree) return;
+    const result = createBooking({ consultantId: consultant.id, serviceId: selectedService.id, date, time, mode, note });
+    if (result.error !== undefined) {
+      setError(result.error);
+      setTime(null);
+      return;
+    }
+    router.replace({ pathname: '/client/booking/[id]', params: { id: result.booking.id, justBooked: '1' } });
   }
 
   return (
@@ -93,12 +89,12 @@ export default function BookSessionScreen() {
       <ScreenHeader title="Book a session" subtitle={consultant.name} fallbackHref="/client" />
       <ScrollView contentContainerClassName="gap-4 p-4" keyboardShouldPersistTaps="handled">
         <Step number={1} title="Choose a service">
-          {consultant.services.map((s, i) => {
-            const selected = s === selectedService;
+          {consultant.services.map((s) => {
+            const selected = s.id === selectedService.id;
             return (
               <Pressable
-                key={s.name}
-                onPress={() => chooseService(i)}
+                key={s.id}
+                onPress={() => chooseService(s.id)}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected }}
                 className={`flex-row items-center gap-3 rounded-xl border-[1.5px] p-3 ${selected ? 'border-red bg-red-tint' : 'border-line bg-surface'}`}>
@@ -212,6 +208,7 @@ export default function BookSessionScreen() {
       </ScrollView>
 
       <View className="gap-2 border-t border-line bg-surface px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
+        {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
         <Text className="text-caption text-fg-muted" numberOfLines={1}>
           {time && timeStillFree
             ? `${selectedService.name} · ${formatDate(date)} at ${formatTime(time)} · ${modeMeta[mode].label}`

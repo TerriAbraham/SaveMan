@@ -1,5 +1,13 @@
 import type { Booking, Conversation, Message, Review } from './types';
 import { consultants } from './users';
+import { addDays, toISODate } from '@/utils/dates';
+
+// Dates are relative to today so the demo always has upcoming requests and recent history,
+// whenever the app is run.
+const today = new Date();
+const daysAgo = (n: number) => toISODate(addDays(today, -n));
+/** The next given weekday after today (0 = Sunday ... 6 = Saturday), always 1-7 days ahead. */
+const next = (weekday: number) => toISODate(addDays(today, ((weekday - today.getDay() + 6) % 7) + 1));
 
 const recentBookings: Booking[] = [
   {
@@ -7,7 +15,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-1',
     consultantId: 'u-cons-1',
     serviceName: 'Business plan review',
-    date: '2026-11-10',
+    date: next(2),
     time: '10:00',
     durationMins: 60,
     mode: 'in-person',
@@ -20,7 +28,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-1',
     consultantId: 'u-cons-2',
     serviceName: 'Personal tax return',
-    date: '2026-11-12',
+    date: next(4),
     time: '14:00',
     durationMins: 60,
     mode: 'video',
@@ -33,7 +41,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-1',
     consultantId: 'u-cons-6',
     serviceName: 'CV rewrite',
-    date: '2026-10-20',
+    date: daysAgo(17),
     time: '09:00',
     durationMins: 60,
     mode: 'phone',
@@ -46,7 +54,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-2',
     consultantId: 'u-cons-1',
     serviceName: 'Funding application support',
-    date: '2026-11-09',
+    date: next(1),
     time: '13:00',
     durationMins: 90,
     mode: 'video',
@@ -59,7 +67,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-2',
     consultantId: 'u-cons-3',
     serviceName: 'Contract review',
-    date: '2026-10-15',
+    date: daysAgo(22),
     time: '11:00',
     durationMins: 60,
     mode: 'in-person',
@@ -72,7 +80,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-2',
     consultantId: 'u-cons-1',
     serviceName: 'Business plan review',
-    date: '2026-10-01',
+    date: daysAgo(36),
     time: '15:00',
     durationMins: 60,
     mode: 'phone',
@@ -86,7 +94,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-1',
     consultantId: 'u-cons-1',
     serviceName: 'Business plan review',
-    date: '2026-11-04',
+    date: daysAgo(2),
     time: '14:00',
     durationMins: 60,
     mode: 'in-person',
@@ -100,7 +108,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-1',
     consultantId: 'u-cons-5',
     serviceName: 'Cloud migration planning',
-    date: '2026-10-28',
+    date: daysAgo(9),
     time: '10:00',
     durationMins: 60,
     mode: 'video',
@@ -113,7 +121,7 @@ const recentBookings: Booking[] = [
     clientId: 'u-client-7',
     consultantId: 'u-cons-1',
     serviceName: 'SME growth strategy',
-    date: '2026-11-11',
+    date: next(3),
     time: '09:00',
     durationMins: 120,
     mode: 'video',
@@ -131,7 +139,7 @@ const recentReviews: Review[] = [
     consultantId: 'u-cons-6',
     rating: 5,
     comment: 'Esther completely rewrote my CV and I got the interview. Tenkyu tru!',
-    createdAt: '2026-10-21',
+    createdAt: daysAgo(16),
   },
   {
     id: 'r-2',
@@ -140,7 +148,7 @@ const recentReviews: Review[] = [
     consultantId: 'u-cons-3',
     rating: 4,
     comment: 'Clear advice on the lease. Very professional.',
-    createdAt: '2026-10-16',
+    createdAt: daysAgo(21),
   },
   {
     id: 'r-3',
@@ -149,7 +157,7 @@ const recentReviews: Review[] = [
     consultantId: 'u-cons-1',
     rating: 5,
     comment: 'Practical and easy to understand. Highly recommend.',
-    createdAt: '2026-10-02',
+    createdAt: daysAgo(35),
   },
 ];
 
@@ -163,19 +171,19 @@ const pastSessions: {
   rating: number;
   comment: string;
 }[] = [
-  { id: 'h-1', clientId: 'u-client-5', consultantId: 'u-cons-1', date: '2026-09-12', mode: 'in-person', rating: 5, comment: 'Dr. Kila helped us turn an idea into a bankable plan. The bank approved our loan.' },
-  { id: 'h-2', clientId: 'u-client-7', consultantId: 'u-cons-1', date: '2026-08-03', mode: 'video', rating: 4, comment: 'Very knowledgeable. Session ran a little over time but worth it.' },
-  { id: 'h-3', clientId: 'u-client-5', consultantId: 'u-cons-2', date: '2026-10-05', mode: 'in-person', rating: 5, comment: 'Joanne sorted out three years of messy receipts. Stress free tax time!' },
-  { id: 'h-4', clientId: 'u-client-6', consultantId: 'u-cons-2', date: '2026-09-20', mode: 'video', rating: 5, comment: 'Clear explanations of GST. I finally understand my obligations.' },
-  { id: 'h-5', clientId: 'u-client-1', consultantId: 'u-cons-2', date: '2026-07-14', mode: 'phone', rating: 4, comment: 'Quick and helpful answers on my personal return.' },
-  { id: 'h-6', clientId: 'u-client-7', consultantId: 'u-cons-3', date: '2026-09-02', mode: 'in-person', rating: 5, comment: 'Samuel explained our clan land lease in Tok Pisin for the elders. Excellent.' },
-  { id: 'h-7', clientId: 'u-client-4', consultantId: 'u-cons-4', date: '2026-10-11', mode: 'in-person', rating: 5, comment: 'Lynette visited our block and our coffee grade improved the next harvest.' },
-  { id: 'h-8', clientId: 'u-client-4', consultantId: 'u-cons-4', date: '2026-06-08', mode: 'phone', rating: 4, comment: 'Good advice on forming a cooperative.' },
-  { id: 'h-9', clientId: 'u-client-6', consultantId: 'u-cons-5', date: '2026-10-18', mode: 'in-person', rating: 5, comment: 'Kevin set up our school network in one day. Fast internet in every classroom now.' },
-  { id: 'h-10', clientId: 'u-client-2', consultantId: 'u-cons-5', date: '2026-08-25', mode: 'video', rating: 4, comment: 'Thorough security review with a clear list of fixes.' },
-  { id: 'h-11', clientId: 'u-client-5', consultantId: 'u-cons-6', date: '2026-09-28', mode: 'video', rating: 5, comment: 'The mock interview was tough but I felt so prepared on the day.' },
+  { id: 'h-1', clientId: 'u-client-5', consultantId: 'u-cons-1', date: daysAgo(55), mode: 'in-person', rating: 5, comment: 'Dr. Kila helped us turn an idea into a bankable plan. The bank approved our loan.' },
+  { id: 'h-2', clientId: 'u-client-7', consultantId: 'u-cons-1', date: daysAgo(95), mode: 'video', rating: 4, comment: 'Very knowledgeable. Session ran a little over time but worth it.' },
+  { id: 'h-3', clientId: 'u-client-5', consultantId: 'u-cons-2', date: daysAgo(32), mode: 'in-person', rating: 5, comment: 'Joanne sorted out three years of messy receipts. Stress free tax time!' },
+  { id: 'h-4', clientId: 'u-client-6', consultantId: 'u-cons-2', date: daysAgo(47), mode: 'video', rating: 5, comment: 'Clear explanations of GST. I finally understand my obligations.' },
+  { id: 'h-5', clientId: 'u-client-1', consultantId: 'u-cons-2', date: daysAgo(115), mode: 'phone', rating: 4, comment: 'Quick and helpful answers on my personal return.' },
+  { id: 'h-6', clientId: 'u-client-7', consultantId: 'u-cons-3', date: daysAgo(65), mode: 'in-person', rating: 5, comment: 'Samuel explained our clan land lease in Tok Pisin for the elders. Excellent.' },
+  { id: 'h-7', clientId: 'u-client-4', consultantId: 'u-cons-4', date: daysAgo(26), mode: 'in-person', rating: 5, comment: 'Lynette visited our block and our coffee grade improved the next harvest.' },
+  { id: 'h-8', clientId: 'u-client-4', consultantId: 'u-cons-4', date: daysAgo(151), mode: 'phone', rating: 4, comment: 'Good advice on forming a cooperative.' },
+  { id: 'h-9', clientId: 'u-client-6', consultantId: 'u-cons-5', date: daysAgo(19), mode: 'in-person', rating: 5, comment: 'Kevin set up our school network in one day. Fast internet in every classroom now.' },
+  { id: 'h-10', clientId: 'u-client-2', consultantId: 'u-cons-5', date: daysAgo(73), mode: 'video', rating: 4, comment: 'Thorough security review with a clear list of fixes.' },
+  { id: 'h-11', clientId: 'u-client-5', consultantId: 'u-cons-6', date: daysAgo(39), mode: 'video', rating: 5, comment: 'The mock interview was tough but I felt so prepared on the day.' },
   // Breaks the review rules (personal attack, not about the session), for testing admin moderation.
-  { id: 'h-12', clientId: 'u-client-2', consultantId: 'u-cons-2', date: '2026-11-02', mode: 'phone', rating: 1, comment: 'SCAMMER!!! Do not trust this woman, call 7xxx xxxx and tell her what you think of her.' },
+  { id: 'h-12', clientId: 'u-client-2', consultantId: 'u-cons-2', date: daysAgo(4), mode: 'phone', rating: 1, comment: 'SCAMMER!!! Do not trust this woman, call 7xxx xxxx and tell her what you think of her.' },
 ];
 
 const pastBookings: Booking[] = pastSessions.map((s) => {
@@ -214,7 +222,7 @@ export const conversations: Conversation[] = [
 ];
 
 export const messages: Message[] = [
-  { id: 'm-1', conversationId: 'c-1', senderId: 'u-client-1', text: 'Hi Dr. Kila, can I bring my financial records to our meeting?', sentAt: '2026-11-05T08:12:00', read: true },
-  { id: 'm-2', conversationId: 'c-1', senderId: 'u-cons-1', text: 'Yes please, the last 12 months if you have them.', sentAt: '2026-11-05T08:40:00', read: false },
-  { id: 'm-3', conversationId: 'c-2', senderId: 'u-client-1', text: 'Is a video call fine for the tax session?', sentAt: '2026-11-04T16:05:00', read: false },
+  { id: 'm-1', conversationId: 'c-1', senderId: 'u-client-1', text: 'Hi Dr. Kila, can I bring my financial records to our meeting?', sentAt: `${daysAgo(1)}T08:12:00`, read: true },
+  { id: 'm-2', conversationId: 'c-1', senderId: 'u-cons-1', text: 'Yes please, the last 12 months if you have them.', sentAt: `${daysAgo(1)}T08:40:00`, read: false },
+  { id: 'm-3', conversationId: 'c-2', senderId: 'u-client-1', text: 'Is a video call fine for the tax session?', sentAt: `${daysAgo(2)}T16:05:00`, read: false },
 ];

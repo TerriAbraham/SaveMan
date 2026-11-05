@@ -38,9 +38,15 @@ export default function BookingDetailScreen() {
     );
   }
 
-  const status = bookingStatusMeta[booking.status];
+  const started = hasStarted(booking);
+  const explain =
+    started && booking.status === 'pending'
+      ? 'The consultant didn’t respond before the session time. Please book another time.'
+      : started && booking.status === 'confirmed'
+        ? 'This session has taken place. The consultant will mark it completed, then you can leave a review.'
+        : bookingStatusMeta[booking.status].explain;
   // Can't cancel a session that has already started.
-  const canCancel = isUpcoming(booking) && !hasStarted(booking);
+  const canCancel = isUpcoming(booking) && !started;
   const mode = modeMeta[booking.mode];
   const myReview = reviews.find((r) => r.bookingId === booking.id);
   const reviewable = user !== null && canReview(booking, reviews, user.id);
@@ -48,7 +54,14 @@ export default function BookingDetailScreen() {
   function confirmCancel() {
     Alert.alert('Cancel this booking?', 'The consultant will be told the session is cancelled.', [
       { text: 'Keep booking', style: 'cancel' },
-      { text: 'Cancel booking', style: 'destructive', onPress: () => cancelBooking(booking!.id) },
+      {
+        text: 'Cancel booking',
+        style: 'destructive',
+        onPress: () => {
+          const error = cancelBooking(booking!.id);
+          if (error) Alert.alert('Could not cancel', error);
+        },
+      },
     ]);
   }
 
@@ -69,8 +82,8 @@ export default function BookingDetailScreen() {
         )}
 
         <View className="gap-3 rounded-card border border-line bg-surface p-4">
-          <BookingStatusPill status={booking.status} />
-          <Text className="text-body text-fg-muted">{status.explain}</Text>
+          <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
+          <Text className="text-body text-fg-muted">{explain}</Text>
 
           <Pressable
             onPress={() => router.push({ pathname: '/client/consultant/[id]', params: { id: consultant.id } })}

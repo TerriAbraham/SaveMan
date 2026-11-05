@@ -1,8 +1,7 @@
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
-import { Icon } from '@/components/icon';
-import { colors } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/context/auth-context';
 import { useConversations } from '@/hooks/use-messages';
 import { formatMessageTime } from '@/utils/format';
@@ -57,11 +56,7 @@ export function ConversationList({ onOpen, emptyText }: { onOpen: (otherId: stri
         );
       }}
       ListEmptyComponent={
-        <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
-          <Icon name="chat" size={28} color={colors.textMuted} />
-          <Text className="text-heading text-fg">No messages yet</Text>
-          <Text className="text-center text-body text-fg-muted">{emptyText}</Text>
-        </View>
+        <EmptyState icon="chat" title="No messages yet" message={emptyText} />
       }
     />
   );

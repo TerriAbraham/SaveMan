@@ -6,10 +6,11 @@ import { AuthScreen } from '@/components/auth-screen';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { TextField } from '@/components/ui/text-field';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import { cities } from '@/data/users';
 
 type AccountType = 'client' | 'consultant';
@@ -18,6 +19,7 @@ type Field = 'name' | 'email' | 'phone' | 'city' | 'title' | 'categoryId' | 'pas
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUpScreen() {
+  const { categories } = useData();
   const router = useRouter();
   const { signUp } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>('client');
@@ -75,24 +77,15 @@ export default function SignUpScreen() {
 
   return (
     <AuthScreen title="Create account" subtitle="Join SaveMan as a client or a consultant.">
-      <View className="flex-row gap-1 rounded-xl border border-line bg-surface p-1" accessibilityRole="tablist">
-        {(['client', 'consultant'] as const).map((t) => {
-          const selected = accountType === t;
-          return (
-            <Pressable
-              key={t}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              onPress={() => setAccountType(t)}
-              className={`flex-1 flex-row items-center justify-center gap-2 rounded-lg py-3 ${selected ? 'bg-ink' : ''}`}>
-              <Icon name={t === 'client' ? 'person' : 'briefcase'} size={18} color={selected ? colors.textOnDark : colors.textMuted} />
-              <Text className={`text-[14px] font-semibold ${selected ? 'text-on-dark' : 'text-fg-muted'}`}>
-                {t === 'client' ? 'I need advice' : "I'm a consultant"}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        surface="surface"
+        value={accountType}
+        onChange={setAccountType}
+        segments={[
+          { value: 'client', label: 'I need advice', icon: 'person' },
+          { value: 'consultant', label: "I'm a consultant", icon: 'briefcase' },
+        ]}
+      />
 
       <TextField label="Full name" icon="person" value={form.name} onChangeText={(v) => set('name', v)} placeholder="e.g. Grace Kaupa" autoComplete="name" error={errors.name} />
       <TextField

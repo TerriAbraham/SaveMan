@@ -49,7 +49,7 @@ export default function LeaveReviewScreen() {
       setError('Tap the stars to choose a rating.');
       return;
     }
-    const result = addReview({ bookingId: booking.id, clientId: user.id, rating, comment });
+    const result = addReview({ bookingId: booking.id, rating, comment });
     if (result) {
       setError(result);
       return;

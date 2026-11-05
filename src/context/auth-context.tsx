@@ -18,8 +18,15 @@ export interface SignUpInput {
 
 /** Fields a consultant can change themselves: profile, services and availability. */
 export type ConsultantProfileChanges = Partial<
-  Pick<Consultant, 'title' | 'bio' | 'hourlyRate' | 'location' | 'services' | 'availability'>
+  Pick<Consultant, 'title' | 'categoryId' | 'bio' | 'hourlyRate' | 'location' | 'services' | 'availability'>
 >;
+
+/** Contact details any user can change. `city` applies to clients only. */
+export interface OwnProfileChanges {
+  name: string;
+  phone: string;
+  city?: string;
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -27,7 +34,10 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => string | null;
   signUp: (input: SignUpInput) => string | null;
   signOut: () => void;
-  updateConsultant: (id: string, changes: ConsultantProfileChanges) => void;
+  /** Signed-in consultant only. Returns an error message, or null on success. */
+  updateConsultant: (changes: ConsultantProfileChanges) => string | null;
+  /** Signed-in user's name, phone (and city for clients). Returns an error message, or null. */
+  updateOwnProfile: (changes: OwnProfileChanges) => string | null;
   adjustRating: (consultantId: string, rating: number, change: 1 | -1) => void;
   /** Admin only. Returns an error message, or null on success. */
   setVerification: (consultantId: string, verification: VerificationStatus) => string | null;
@@ -104,8 +114,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserId(null);
   }
 
-  function updateConsultant(id: string, changes: ConsultantProfileChanges) {
-    setUsers((prev) => prev.map((u) => (u.id === id && u.role === 'consultant' ? { ...u, ...changes } : u)));
+  // Profile changes always apply to the signed-in user, so one account can't edit another.
+
+  function updateConsultant(changes: ConsultantProfileChanges) {
+    if (user?.role !== 'consultant') return 'Only consultants can change these details.';
+    setUsers((prev) => prev.map((u) => (u.id === user.id && u.role === 'consultant' ? { ...u, ...changes } : u)));
+    return null;
+  }
+
+  function updateOwnProfile({ name, phone, city }: OwnProfileChanges) {
+    if (!user) return 'Please log in again.';
+    if (name.trim().length < 2) return 'Enter your full name.';
+    if (phone.replace(/\D/g, '').length < 7) return 'Enter a valid phone number.';
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== user.id) return u;
+        const base = { ...u, name: name.trim(), phone: phone.trim() };
+        return base.role === 'client' && city ? { ...base, city } : base;
+      }),
+    );
+    return null;
   }
 
   /** Add a review to (1) or take one out of (-1) a consultant's average rating and count. */
@@ -146,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signOut,
         updateConsultant,
+        updateOwnProfile,
         adjustRating,
         setVerification,
         setAccountStatus,

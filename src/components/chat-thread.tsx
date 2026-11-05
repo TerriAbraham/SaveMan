@@ -23,15 +23,15 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
   const { sendMessage, markConversationRead } = useData();
   const { conversation, messages } = useThread(otherId);
   const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const other = users.find((u) => u.id === otherId);
   const conversationId = conversation?.id;
-  const userId = user?.id;
 
   // Opening the thread (or receiving a message while it is open) marks it read.
   useEffect(() => {
-    if (conversationId && userId) markConversationRead(conversationId, userId);
-  }, [conversationId, userId, messages.length, markConversationRead]);
+    if (conversationId) markConversationRead(conversationId);
+  }, [conversationId, messages.length, markConversationRead]);
 
   // Clients can only message consultants and vice versa.
   const validPair =
@@ -60,11 +60,10 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
   const canSend = draft.trim().length > 0;
 
   function send() {
-    if (!canSend || !user || !other) return;
-    const clientId = user.role === 'client' ? user.id : other.id;
-    const consultantId = user.role === 'consultant' ? user.id : other.id;
-    sendMessage({ clientId, consultantId, senderId: user.id, text: draft });
-    setDraft('');
+    if (!canSend) return;
+    const result = sendMessage(otherId, draft);
+    setError(result);
+    if (!result) setDraft(''); // keep the text if sending failed
   }
 
   return (
@@ -107,6 +106,7 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
         />
       )}
 
+      {error && <Text className="bg-red-tint px-4 py-2 text-label text-red-dark">{error}</Text>}
       <View
         className="flex-row items-end gap-2 border-t border-line bg-surface px-3 pt-2"
         style={{ paddingBottom: Math.max(insets.bottom, 8) }}>

@@ -1,11 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 
 import { BookingCard } from '@/components/booking-card';
-import { Icon } from '@/components/icon';
-import { Button } from '@/components/ui/button';
-import { colors } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import { isUpcoming } from '@/utils/availability';
@@ -31,24 +30,14 @@ export default function MyBookingsScreen() {
   return (
     <View className="flex-1 bg-sand">
       <View className="border-b border-line bg-surface p-4">
-        <View className="flex-row gap-1 rounded-xl bg-sand p-1" accessibilityRole="tablist">
-          {(['upcoming', 'past'] as const).map((t) => {
-            const selected = t === tab;
-            const count = t === 'upcoming' ? upcoming.length : past.length;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => setTab(t)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                className={`flex-1 items-center rounded-lg py-2.5 ${selected ? 'bg-ink' : ''}`}>
-                <Text className={`text-[14px] font-semibold ${selected ? 'text-on-dark' : 'text-fg-muted'}`}>
-                  {t === 'upcoming' ? 'Upcoming' : 'Past'} ({count})
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          segments={[
+            { value: 'upcoming', label: `Upcoming (${upcoming.length})` },
+            { value: 'past', label: `Past (${past.length})` },
+          ]}
+        />
       </View>
 
       <FlatList
@@ -68,22 +57,21 @@ export default function MyBookingsScreen() {
           />
         )}
         ListEmptyComponent={
-          <View className="items-center gap-3 rounded-card border border-line bg-surface p-6">
-            <Icon name="calendar" size={28} color={colors.textMuted} />
-            <Text className="text-heading text-fg">
-              {tab === 'upcoming' ? 'No upcoming sessions' : 'No past sessions yet'}
-            </Text>
-            <Text className="text-center text-body text-fg-muted">
-              {tab === 'upcoming'
-                ? 'Find a verified consultant and book your first session.'
-                : 'Sessions you have finished or cancelled will appear here.'}
-            </Text>
-            {tab === 'upcoming' && (
-              <View className="self-stretch">
-                <Button title="Find a consultant" onPress={() => router.navigate('/client')} />
-              </View>
-            )}
-          </View>
+          tab === 'upcoming' ? (
+            <EmptyState
+              icon="calendar"
+              title="No upcoming sessions"
+              message="Find a verified consultant and book your first session."
+              actionLabel="Find a consultant"
+              onAction={() => router.navigate('/client')}
+            />
+          ) : (
+            <EmptyState
+              icon="calendar"
+              title="No past sessions yet"
+              message="Sessions you have finished or cancelled will appear here."
+            />
+          )
         }
       />
     </View>

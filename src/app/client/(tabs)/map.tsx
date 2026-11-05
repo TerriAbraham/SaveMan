@@ -4,10 +4,11 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { ConsultantMap } from '@/components/maps/consultant-map';
 import { Chip } from '@/components/ui/chip';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import { usePublicConsultants } from '@/hooks/use-directory';
 
 export default function ConsultantMapScreen() {
+  const { categories } = useData();
   const router = useRouter();
   const consultants = usePublicConsultants();
   const [categoryId, setCategoryId] = useState<string | null>(null);

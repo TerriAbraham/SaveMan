@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 
 import { Stars } from '@/components/rating';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { SmallButton } from '@/components/ui/small-button';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
@@ -27,23 +29,14 @@ export default function AdminReviewsScreen() {
   return (
     <View className="flex-1 bg-sand">
       <View className="border-b border-line bg-surface p-4">
-        <View className="flex-row gap-1 rounded-xl bg-sand p-1" accessibilityRole="tablist">
-          {(['visible', 'removed'] as const).map((t) => {
-            const selected = t === tab;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => setTab(t)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                className={`flex-1 items-center rounded-lg py-2.5 ${selected ? 'bg-ink' : ''}`}>
-                <Text className={`text-[14px] font-semibold ${selected ? 'text-on-dark' : 'text-fg-muted'}`}>
-                  {t === 'visible' ? `Visible (${visible.length})` : `Removed (${removed.length})`}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          segments={[
+            { value: 'visible', label: `Visible (${visible.length})` },
+            { value: 'removed', label: `Removed (${removed.length})` },
+          ]}
+        />
       </View>
 
       <FlatList
@@ -78,9 +71,11 @@ export default function AdminReviewsScreen() {
           </View>
         )}
         ListEmptyComponent={
-          <Text className="p-6 text-center text-body text-fg-muted">
-            {tab === 'visible' ? 'No reviews yet.' : 'No removed reviews.'}
-          </Text>
+          tab === 'visible' ? (
+            <EmptyState icon="star" title="No reviews yet" message="Reviews appear here after clients rate completed sessions." />
+          ) : (
+            <EmptyState icon="check" title="No removed reviews" message="Reviews you remove are kept here so you can restore them." />
+          )
         }
       />
     </View>

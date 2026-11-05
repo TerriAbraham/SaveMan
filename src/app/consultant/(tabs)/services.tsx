@@ -3,6 +3,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { formatDuration, formatKina } from '@/utils/format';
@@ -48,11 +49,7 @@ export default function MyServicesScreen() {
         </Pressable>
       )}
       ListEmptyComponent={
-        <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
-          <Icon name="briefcase" size={28} color={colors.textMuted} />
-          <Text className="text-heading text-fg">No services yet</Text>
-          <Text className="text-center text-body text-fg-muted">Add at least one service so clients can book you.</Text>
-        </View>
+        <EmptyState icon="briefcase" title="No services yet" message="Add at least one service so clients can book you." />
       }
     />
   );

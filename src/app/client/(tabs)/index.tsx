@@ -1,18 +1,19 @@
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ConsultantCard } from '@/components/consultant-card';
-import { Icon } from '@/components/icon';
 import { Chip } from '@/components/ui/chip';
-import { colors } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SearchField } from '@/components/ui/search-field';
 import { useAuth } from '@/context/auth-context';
-import { categories } from '@/data/categories';
+import { useData } from '@/context/data-context';
 import { cities } from '@/data/users';
 import { usePublicConsultants } from '@/hooks/use-directory';
 import { filterConsultants } from '@/utils/search';
 
 export default function FindConsultantsScreen() {
+  const { categories } = useData();
   const router = useRouter();
   const { user } = useAuth();
   const consultants = usePublicConsultants();
@@ -36,24 +37,12 @@ export default function FindConsultantsScreen() {
       <View className="gap-3 border-b border-line bg-surface pb-3 pt-4">
         <View className="px-4">
           <Text className="mb-3 text-title text-fg">Hi {user?.name.split(' ')[0]}, who can help you today?</Text>
-          <View className="min-h-[48px] flex-row items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-sand px-4">
-            <Icon name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Name, service or location"
-              placeholderTextColor={colors.textMuted}
-              autoCorrect={false}
-              returnKeyType="search"
-              accessibilityLabel="Search consultants"
-              className="flex-1 py-2.5 text-[16px] text-fg"
-            />
-            {query !== '' && (
-              <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search">
-                <Icon name="close" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Name, service or location"
+            label="Search consultants"
+          />
         </View>
 
         <FilterRow label="Service">
@@ -95,13 +84,13 @@ export default function FindConsultantsScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
-            <Icon name="search" size={28} color={colors.textMuted} />
-            <Text className="text-heading text-fg">No consultants found</Text>
-            <Text className="text-center text-body text-fg-muted">
-              Try a different word, or choose another service or location.
-            </Text>
-          </View>
+          <EmptyState
+            icon="search"
+            title="No consultants found"
+            message="Try a different word, or choose another service or location."
+            actionLabel={hasFilters ? 'Clear filters' : undefined}
+            onAction={clearFilters}
+          />
         }
         renderItem={({ item }) => (
           <ConsultantCard

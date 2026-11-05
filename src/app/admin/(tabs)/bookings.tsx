@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { FlatList, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, ScrollView, Text, View } from 'react-native';
 
 import { modeMeta } from '@/components/booking-card';
 import { BookingStatusPill, bookingStatusMeta } from '@/components/booking-status';
-import { Icon } from '@/components/icon';
 import { Chip } from '@/components/ui/chip';
-import { colors } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SearchField } from '@/components/ui/search-field';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import type { BookingStatus } from '@/data/types';
+import { hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatKina } from '@/utils/format';
 
@@ -32,17 +33,8 @@ export default function AdminBookingsScreen() {
   return (
     <View className="flex-1 bg-sand">
       <View className="gap-3 border-b border-line bg-surface py-3">
-        <View className="mx-4 min-h-[44px] flex-row items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-sand px-4">
-          <Icon name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Client, consultant or service"
-            placeholderTextColor={colors.textMuted}
-            autoCorrect={false}
-            accessibilityLabel="Search bookings"
-            className="flex-1 py-2 text-[16px] text-fg"
-          />
+        <View className="px-4">
+          <SearchField value={query} onChangeText={setQuery} placeholder="Client, consultant or service" label="Search bookings" />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 px-4">
           <Chip label="All" selected={status === null} onPress={() => setStatus(null)} />
@@ -74,10 +66,16 @@ export default function AdminBookingsScreen() {
             <Text className="text-caption text-fg-muted">
               {formatDate(item.date)} · {formatTime(item.time)} · {modeMeta[item.mode].label}
             </Text>
-            <BookingStatusPill status={item.status} />
+            <BookingStatusPill status={item.status} started={hasStarted(item)} />
           </View>
         )}
-        ListEmptyComponent={<Text className="p-6 text-center text-body text-fg-muted">No bookings match.</Text>}
+        ListEmptyComponent={
+          <EmptyState
+            icon="list"
+            title={bookings.length === 0 ? 'No bookings yet' : 'No bookings found'}
+            message={bookings.length === 0 ? 'Bookings will appear here as clients make them.' : 'Try another search or status.'}
+          />
+        }
       />
     </View>
   );
