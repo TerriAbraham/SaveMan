@@ -1,18 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { colors } from '@/constants/theme';
+import { AuthProvider, useAuth } from '@/context/auth-context';
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <AuthProvider>
+      <StatusBar style="light" />
+      <RootNavigator />
+    </AuthProvider>
+  );
+}
+
+// Each role only sees its own section; signing in or out switches section automatically.
+function RootNavigator() {
+  const { user } = useAuth();
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.sand } }}>
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Protected guard={user?.role === 'client'}>
+        <Stack.Screen name="client" />
+      </Stack.Protected>
+      <Stack.Protected guard={user?.role === 'consultant'}>
+        <Stack.Screen name="consultant" />
+      </Stack.Protected>
+      <Stack.Protected guard={user?.role === 'admin'}>
+        <Stack.Screen name="admin" />
+      </Stack.Protected>
+    </Stack>
   );
 }

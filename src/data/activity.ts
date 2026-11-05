@@ -1,0 +1,117 @@
+import type { Booking, Conversation, Message, Review } from './types';
+
+export const bookings: Booking[] = [
+  {
+    id: 'b-1',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-1',
+    date: '2026-11-10',
+    time: '10:00',
+    durationMins: 60,
+    mode: 'in-person',
+    note: 'Need help with a business plan for a bakery in Gerehu.',
+    status: 'confirmed',
+    price: 250,
+  },
+  {
+    id: 'b-2',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-2',
+    date: '2026-11-12',
+    time: '14:00',
+    durationMins: 60,
+    mode: 'video',
+    note: 'Annual tax return questions.',
+    status: 'pending',
+    price: 200,
+  },
+  {
+    id: 'b-3',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-6',
+    date: '2026-10-20',
+    time: '09:00',
+    durationMins: 60,
+    mode: 'phone',
+    note: 'CV review before applying for a role at a mining company.',
+    status: 'completed',
+    price: 120,
+  },
+  {
+    id: 'b-4',
+    clientId: 'u-client-2',
+    consultantId: 'u-cons-1',
+    date: '2026-11-08',
+    time: '13:00',
+    durationMins: 90,
+    mode: 'video',
+    note: 'Funding application for a trucking business.',
+    status: 'pending',
+    price: 375,
+  },
+  {
+    id: 'b-5',
+    clientId: 'u-client-2',
+    consultantId: 'u-cons-3',
+    date: '2026-10-15',
+    time: '11:00',
+    durationMins: 60,
+    mode: 'in-person',
+    note: 'Lease agreement review.',
+    status: 'completed',
+    price: 350,
+  },
+  {
+    id: 'b-6',
+    clientId: 'u-client-2',
+    consultantId: 'u-cons-1',
+    date: '2026-10-01',
+    time: '15:00',
+    durationMins: 60,
+    mode: 'phone',
+    note: 'Cash flow review.',
+    status: 'completed',
+    price: 250,
+  },
+];
+
+export const reviews: Review[] = [
+  {
+    id: 'r-1',
+    bookingId: 'b-3',
+    clientId: 'u-client-1',
+    consultantId: 'u-cons-6',
+    rating: 5,
+    comment: 'Esther completely rewrote my CV and I got the interview. Tenkyu tru!',
+    createdAt: '2026-10-21',
+  },
+  {
+    id: 'r-2',
+    bookingId: 'b-5',
+    clientId: 'u-client-2',
+    consultantId: 'u-cons-3',
+    rating: 4,
+    comment: 'Clear advice on the lease. Very professional.',
+    createdAt: '2026-10-16',
+  },
+  {
+    id: 'r-3',
+    bookingId: 'b-6',
+    clientId: 'u-client-2',
+    consultantId: 'u-cons-1',
+    rating: 5,
+    comment: 'Practical and easy to understand. Highly recommend.',
+    createdAt: '2026-10-02',
+  },
+];
+
+export const conversations: Conversation[] = [
+  { id: 'c-1', clientId: 'u-client-1', consultantId: 'u-cons-1' },
+  { id: 'c-2', clientId: 'u-client-1', consultantId: 'u-cons-2' },
+];
+
+export const messages: Message[] = [
+  { id: 'm-1', conversationId: 'c-1', senderId: 'u-client-1', text: 'Hi Dr. Kila, can I bring my financial records to our meeting?', sentAt: '2026-11-05T08:12:00' },
+  { id: 'm-2', conversationId: 'c-1', senderId: 'u-cons-1', text: 'Yes please, the last 12 months if you have them.', sentAt: '2026-11-05T08:40:00' },
+  { id: 'm-3', conversationId: 'c-2', senderId: 'u-client-1', text: 'Is a video call fine for the tax session?', sentAt: '2026-11-04T16:05:00' },
+];

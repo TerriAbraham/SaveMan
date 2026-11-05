@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "SaveMan",
+    "name": "SaveMan Consultant",
     "slug": "SaveMan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "saveman",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#14110F",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
