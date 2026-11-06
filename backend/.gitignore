@@ -1,0 +1,4 @@
+node_modules/
+# Local database and the development master key: never commit these.
+data/
+.env

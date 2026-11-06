@@ -1,9 +1,20 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
+import {
+  ApiError,
+  authApi,
+  errorMessage,
+  type ApiUser,
+  type LoginResponse,
+  type MfaEnableResponse,
+  type MfaSetupData,
+  type MfaStatus,
+  type MfaVerifyResponse,
+  type SecondFactor,
+} from '@/api/auth-api';
 import { places, seedUsers, standardWeek } from '@/data/users';
 import type { AccountStatus, Client, Consultant, User, VerificationStatus } from '@/data/types';
 import { adjustAverage } from '@/utils/ratings';
-
 export interface SignUpInput {
   role: 'client' | 'consultant';
   name: string;
@@ -28,12 +39,44 @@ export interface OwnProfileChanges {
   city?: string;
 }
 
+/** Where to go after a password: signed in, or one of the MFA screens. */
+export type AuthResult = { error: string } | { next: 'done' | 'mfa-verify' | 'mfa-setup' };
+
+/** Password accepted, MFA still to do: enter a code ('verify') or enrol first ('setup'). */
+export interface PendingMfa {
+  kind: 'verify' | 'setup';
+  mfaToken: string;
+  user: ApiUser;
+}
+
+interface Session {
+  token: string;
+  mfaEnabled: boolean;
+  mfaRequired: boolean;
+}
+
 interface AuthContextValue {
   user: User | null;
   users: User[];
-  signIn: (email: string, password: string) => string | null;
-  signUp: (input: SignUpInput) => string | null;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (input: SignUpInput) => Promise<AuthResult>;
   signOut: () => void;
+
+  // Multi-factor authentication. These throw ApiError; show it with errorMessage().
+  pendingMfa: PendingMfa | null;
+  /** MFA state of the signed-in account. */
+  security: { mfaEnabled: boolean; mfaRequired: boolean } | null;
+  verifyMfa: (factor: SecondFactor) => Promise<MfaVerifyResponse>;
+  /** Opens the session from verifyMfa / confirmMfaSetup. Separate so screens can show a notice first. */
+  completeSignIn: (result: { token?: string; user: ApiUser }) => void;
+  cancelMfa: () => void;
+  /** New secret to scan. `reauth` only when replacing an authenticator that's already on. */
+  startMfaSetup: (reauth?: { password: string } & SecondFactor) => Promise<MfaSetupData>;
+  confirmMfaSetup: (code: string) => Promise<MfaEnableResponse>;
+  getMfaStatus: () => Promise<MfaStatus>;
+  regenerateRecoveryCodes: (code: string) => Promise<string[]>;
+  disableMfa: (password: string, factor: SecondFactor) => Promise<void>;
+
   /** Signed-in consultant only. Returns an error message, or null on success. */
   updateConsultant: (changes: ConsultantProfileChanges) => string | null;
   /** Signed-in user's name, phone (and city for clients). Returns an error message, or null. */
@@ -47,71 +90,149 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// In-memory only: accounts created at sign-up reset when the app reloads.
+const SUSPENDED = 'This account has been suspended. Contact SaveMan support.';
+const noSession = () => new ApiError('Please log in again.', 'unauthorized', 401);
+
+/** A new account's in-memory profile. Consultants start unverified with an empty profile. */
+function buildProfile(id: string, input: Omit<SignUpInput, 'password'>): User {
+  const base = {
+    id,
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    password: '', // the password lives only on the server, hashed
+    phone: input.phone.trim(),
+    status: 'active' as const,
+    createdAt: new Date().toISOString().slice(0, 10),
+  };
+  if (input.role === 'client') return { ...base, role: 'client', city: input.city } satisfies Client;
+
+  // Start at the chosen town centre; the consultant can set their exact office pin later.
+  const place = Object.values(places).find((p) => p.city === input.city) ?? places.portMoresby;
+  return {
+    ...base,
+    role: 'consultant',
+    title: input.title?.trim() ?? '',
+    categoryId: input.categoryId ?? '',
+    bio: '',
+    expertise: [],
+    qualifications: [],
+    services: [],
+    availability: standardWeek,
+    hourlyRate: 0,
+    yearsExperience: 0,
+    languages: ['English'],
+    location: { ...place, address: '' },
+    verification: 'pending', // new consultants wait for admin approval
+    rating: 0,
+    reviewCount: 0,
+  } satisfies Consultant;
+}
+
+// Passwords, sessions and MFA are checked by the SaveMan API (backend/). Profiles, bookings and
+// the rest are still in-memory only: accounts created at sign-up reset here when the app reloads.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(seedUsers);
   const [userId, setUserId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
 
   const user = users.find((u) => u.id === userId) ?? null;
 
-  // Both return an error message, or null on success.
-  function signIn(email: string, password: string) {
-    const match = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-    if (!match || match.password !== password) return 'Incorrect email or password.';
-    if (match.status === 'suspended') return 'This account has been suspended. Contact SaveMan support.';
-    setUserId(match.id);
-    return null;
+  /** Session token, or the enrolment token while a required-MFA user sets up their authenticator. */
+  function setupToken() {
+    const token = pendingMfa?.kind === 'setup' ? pendingMfa.mfaToken : session?.token;
+    if (!token) throw noSession();
+    return token;
   }
 
-  function signUp(input: SignUpInput) {
-    const email = input.email.trim().toLowerCase();
-    if (users.some((u) => u.email.toLowerCase() === email)) {
-      return 'An account with this email already exists.';
+  function sessionToken() {
+    if (!session) throw noSession();
+    return session.token;
+  }
+
+  function afterPassword(res: LoginResponse, profile?: User): AuthResult {
+    const token = res.status === 'ok' ? res.token : res.mfaToken;
+    // Suspension is managed by the admin screens in the app, so it's checked here too.
+    if (users.find((u) => u.id === res.user.id)?.status === 'suspended') {
+      authApi.logout(token).catch(() => {});
+      return { error: SUSPENDED };
     }
+    // An account made in an earlier run of the app is still on the server; give it a fresh profile here.
+    const local =
+      profile ?? buildProfile(res.user.id, { role: res.user.role === 'consultant' ? 'consultant' : 'client', name: res.user.name, email: res.user.email, phone: '', city: '' });
+    setUsers((prev) => (prev.some((u) => u.id === res.user.id) ? prev : [...prev, local]));
 
-    const base = {
-      id: `u-${Date.now()}`,
-      name: input.name.trim(),
-      email,
-      password: input.password,
-      phone: input.phone.trim(),
-      status: 'active' as const,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    let created: User;
-    if (input.role === 'client') {
-      created = { ...base, role: 'client', city: input.city } satisfies Client;
-    } else {
-      // Start at the chosen town centre; the consultant can set their exact office pin later.
-      const place = Object.values(places).find((p) => p.city === input.city) ?? places.portMoresby;
-      const location = { ...place, address: '' };
-      created = {
-        ...base,
-        role: 'consultant',
-        title: input.title?.trim() ?? '',
-        categoryId: input.categoryId ?? '',
-        bio: '',
-        expertise: [],
-        qualifications: [],
-        services: [],
-        availability: standardWeek,
-        hourlyRate: 0,
-        yearsExperience: 0,
-        languages: ['English'],
-        location,
-        verification: 'pending', // new consultants wait for admin approval
-        rating: 0,
-        reviewCount: 0,
-      } satisfies Consultant;
+    if (res.status === 'ok') {
+      completeSignIn(res);
+      return { next: 'done' };
     }
+    const kind = res.status === 'mfa_required' ? 'verify' : 'setup';
+    setPendingMfa({ kind, mfaToken: res.mfaToken, user: res.user });
+    return { next: kind === 'verify' ? 'mfa-verify' : 'mfa-setup' };
+  }
 
-    setUsers((prev) => [...prev, created]);
-    setUserId(created.id);
-    return null;
+  async function signIn(email: string, password: string): Promise<AuthResult> {
+    try {
+      return afterPassword(await authApi.login(email.trim(), password));
+    } catch (err) {
+      return { error: errorMessage(err) };
+    }
+  }
+
+  async function signUp(input: SignUpInput): Promise<AuthResult> {
+    try {
+      const res = await authApi.register({ role: input.role, name: input.name.trim(), email: input.email.trim(), password: input.password });
+      return afterPassword(res, buildProfile(res.user.id, input));
+    } catch (err) {
+      return { error: errorMessage(err) };
+    }
+  }
+
+  function completeSignIn({ token, user: apiUser }: { token?: string; user: ApiUser }) {
+    if (!token) return;
+    setSession({ token, mfaEnabled: apiUser.mfaEnabled, mfaRequired: apiUser.mfaRequired });
+    setPendingMfa(null);
+    setUserId(apiUser.id); // the root layout switches to the user's section
+  }
+
+  function cancelMfa() {
+    if (pendingMfa) authApi.logout(pendingMfa.mfaToken).catch(() => {});
+    setPendingMfa(null);
+  }
+
+  function verifyMfa(factor: SecondFactor) {
+    if (pendingMfa?.kind !== 'verify') throw noSession();
+    return authApi.verifyMfa(pendingMfa.mfaToken, factor);
+  }
+
+  function startMfaSetup(reauth?: { password: string } & SecondFactor) {
+    return authApi.mfaSetup(setupToken(), reauth);
+  }
+
+  async function confirmMfaSetup(code: string) {
+    const res = await authApi.mfaEnable(setupToken(), code);
+    // Enrolling during login: the session opens once the recovery codes have been saved (completeSignIn).
+    if (session) setSession({ ...session, mfaEnabled: true });
+    return res;
+  }
+
+  function getMfaStatus() {
+    return authApi.mfaStatus(sessionToken());
+  }
+
+  async function regenerateRecoveryCodes(code: string) {
+    return (await authApi.regenerateRecoveryCodes(sessionToken(), code)).recoveryCodes;
+  }
+
+  async function disableMfa(password: string, factor: SecondFactor) {
+    const res = await authApi.disableMfa(sessionToken(), password, factor);
+    setSession((s) => (s ? { ...s, mfaEnabled: res.user.mfaEnabled } : s));
   }
 
   function signOut() {
+    if (session) authApi.logout(session.token).catch(() => {});
+    setSession(null);
+    setPendingMfa(null);
     setUserId(null);
   }
 
@@ -174,6 +295,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        pendingMfa,
+        security: session && { mfaEnabled: session.mfaEnabled, mfaRequired: session.mfaRequired },
+        verifyMfa,
+        completeSignIn,
+        cancelMfa,
+        startMfaSetup,
+        confirmMfaSetup,
+        getMfaStatus,
+        regenerateRecoveryCodes,
+        disableMfa,
         updateConsultant,
         updateOwnProfile,
         adjustRating,

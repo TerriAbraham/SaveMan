@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { HeroTexture, PatternBand } from '@/components/brand';
@@ -21,7 +22,8 @@ const verificationStyles: Record<VerificationStatus, { label: string; badge: str
 /** Profile tab: who is signed in, any role-specific sections (`children`), then sign out. */
 export function AccountSummary({ children }: { children?: ReactNode }) {
   const { categories } = useData();
-  const { user, signOut } = useAuth();
+  const router = useRouter();
+  const { user, security, signOut } = useAuth();
   if (!user) return null;
 
   const verification = user.role === 'consultant' ? verificationStyles[user.verification] : null;
@@ -53,6 +55,18 @@ export function AccountSummary({ children }: { children?: ReactNode }) {
       </View>
 
       {children}
+
+      <Pressable
+        onPress={() => router.push(user.role === 'consultant' ? '/consultant/security' : '/client/security')}
+        accessibilityRole="button"
+        className="flex-row items-center gap-3 rounded-card border border-line/70 bg-surface p-4 shadow-card active:opacity-80">
+        <Icon name="shield" size={20} color={security?.mfaEnabled ? colors.forest : colors.textMuted} />
+        <View className="flex-1">
+          <Text className="text-heading text-fg">Security</Text>
+          <Text className="text-caption text-fg-muted">Two-step verification {security?.mfaEnabled ? 'on' : 'off'}</Text>
+        </View>
+        <Icon name="chevronRight" size={16} color={colors.textMuted} />
+      </Pressable>
 
       <Button title="Log out" variant="outline" onPress={signOut} />
     </ScrollView>

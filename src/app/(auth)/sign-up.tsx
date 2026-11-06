@@ -57,22 +57,27 @@ export default function SignUpScreen() {
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit() {
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit() {
+    if (busy) return;
     setFormError(null);
     if (!validate()) return;
-    // On success the root layout switches to the new user's section.
-    setFormError(
-      signUp({
-        role: accountType,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        password: form.password,
-        city: form.city,
-        title: isConsultant ? form.title : undefined,
-        categoryId: isConsultant ? form.categoryId : undefined,
-      }),
-    );
+    setBusy(true);
+    const result = await signUp({
+      role: accountType,
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      password: form.password,
+      city: form.city,
+      title: isConsultant ? form.title : undefined,
+      categoryId: isConsultant ? form.categoryId : undefined,
+    });
+    setBusy(false);
+    // Clients go straight to their section; consultants set up MFA first.
+    if ('error' in result) setFormError(result.error);
+    else if (result.next === 'mfa-setup') router.push('/mfa-setup');
   }
 
   return (
@@ -125,14 +130,15 @@ export default function SignUpScreen() {
         <View className="flex-row items-start gap-3 rounded-xl bg-forest-tint p-4">
           <Icon name="verified" size={20} color={colors.forest} />
           <Text className="flex-1 text-body text-fg">
-            New consultant profiles are reviewed by the SaveMan team. Clients can book you once you are verified.
+            New consultant profiles are reviewed by the SaveMan team. Clients can book you once you are verified. Consultant
+            accounts are protected with two-step verification, so have Google Authenticator or Microsoft Authenticator ready.
           </Text>
         </View>
       )}
 
       {formError && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{formError}</Text>}
 
-      <Button title={isConsultant ? 'Apply as consultant' : 'Create account'} onPress={handleSubmit} />
+      <Button title={isConsultant ? 'Apply as consultant' : 'Create account'} onPress={handleSubmit} loading={busy} />
 
       <View className="flex-row justify-center gap-1">
         <Text className="text-body text-fg-muted">Already have an account?</Text>

@@ -36,6 +36,11 @@ const icons = {
   video: { ios: 'video.fill', android: 'videocam', web: 'videocam' },
   check: { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' },
   note: { ios: 'text.alignleft', android: 'notes', web: 'notes' },
+  shield: { ios: 'lock.shield.fill', android: 'shield_lock', web: 'shield_lock' },
+  key: { ios: 'key.fill', android: 'key', web: 'key' },
+  copy: { ios: 'doc.on.doc', android: 'content_copy', web: 'content_copy' },
+  share: { ios: 'square.and.arrow.up', android: 'share', web: 'share' },
+  external: { ios: 'arrow.up.forward.app', android: 'open_in_new', web: 'open_in_new' },
 } satisfies Record<string, SymbolName>;
 
 export type IconName = keyof typeof icons;

@@ -53,6 +53,7 @@ export default function AdminOverviewScreen() {
       />
       <AttentionRow icon="star" text="Check recent reviews" href="/admin/reviews" />
       <AttentionRow icon="briefcase" text="Manage service categories" href="/admin/categories" />
+      <AttentionRow icon="shield" text="Security and two-step verification" href="/admin/security" />
 
       <Text className="mt-2 text-heading text-fg">Bookings by status</Text>
       <View className="gap-2.5 rounded-card border border-line/70 bg-surface shadow-card p-4">

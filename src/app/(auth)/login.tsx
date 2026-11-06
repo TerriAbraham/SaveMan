@@ -22,14 +22,24 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
+    if (busy) return;
     if (!email.trim() || !password) {
       setError('Enter your email and password.');
       return;
     }
-    // On success the root layout switches to the user's section.
-    setError(signIn(email, password));
+    setBusy(true);
+    setError(null);
+    const result = await signIn(email, password);
+    setBusy(false);
+    // 'done': the root layout switches to the user's section. Otherwise MFA comes next.
+    if ('error' in result) setError(result.error);
+    else if (result.next !== 'done') {
+      setPassword('');
+      router.push(result.next === 'mfa-verify' ? '/mfa-verify' : '/mfa-setup');
+    }
   }
 
   return (
@@ -60,7 +70,7 @@ export default function LoginScreen() {
 
       {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
 
-      <Button title="Log in" onPress={handleLogin} />
+      <Button title="Log in" onPress={handleLogin} loading={busy} />
 
       <View className="flex-row justify-center gap-1">
         <Text className="text-body text-fg-muted">New to SaveMan?</Text>
@@ -71,7 +81,9 @@ export default function LoginScreen() {
 
       <View className="mt-2 gap-1 rounded-card bg-gold-tint p-4">
         <Text className="text-heading text-fg">Demo accounts</Text>
-        <Text className="text-body text-fg-muted">Tap one to fill in its login details.</Text>
+        <Text className="text-body text-fg-muted">
+          Tap one to fill in its login details. Consultant and admin accounts also need an authenticator app the first time.
+        </Text>
         <View className="mt-2 flex-row gap-2">
           {demoAccounts.map((d) => (
             <Pressable
