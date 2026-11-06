@@ -226,7 +226,7 @@ export default function BookSessionScreen() {
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
   return (
-    <View className="gap-3 rounded-card border border-line bg-surface p-4">
+    <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
       <View className="flex-row items-center gap-2">
         <View className="h-6 w-6 items-center justify-center rounded-full bg-ink">
           <Text className="text-caption font-bold text-on-dark">{number}</Text>

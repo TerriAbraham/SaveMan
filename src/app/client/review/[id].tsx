@@ -64,7 +64,7 @@ export default function LeaveReviewScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
+        <View className="items-center gap-2 rounded-card border border-line/70 bg-surface shadow-card p-6">
           <Avatar name={consultant.name} size="lg" />
           <Text className="mt-1 text-heading text-fg">{consultant.name}</Text>
           <Text className="text-body text-fg-muted">
@@ -92,7 +92,7 @@ export default function LeaveReviewScreen() {
           <Text className="h-5 text-label text-fg-muted">{LABELS[rating]}</Text>
         </View>
 
-        <View className="gap-2 rounded-card border border-line bg-surface p-4">
+        <View className="gap-2 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-label text-fg">Tell other clients about it (optional)</Text>
           <TextInput
             value={comment}

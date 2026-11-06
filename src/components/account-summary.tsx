@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
-import { PatternBand } from '@/components/brand';
+import { HeroTexture, PatternBand } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { colors } from '@/constants/theme';
@@ -30,11 +30,12 @@ export function AccountSummary({ children }: { children?: ReactNode }) {
 
   return (
     <ScrollView contentContainerClassName="gap-4 p-4">
-      <View className="overflow-hidden rounded-card border border-line bg-surface">
-        <View className="items-center gap-1 p-6">
+      <View className="overflow-hidden rounded-card border border-line/70 bg-surface shadow-card">
+        <View className="items-center gap-1 overflow-hidden p-6">
+          <HeroTexture />
           <Avatar name={user.name} size="lg" />
-          <Text className="mt-2 text-title text-fg">{user.name}</Text>
-          <Text className="text-body text-fg-muted">{roleLabels[user.role]}</Text>
+          <Text className="mt-2 text-title text-on-dark">{user.name}</Text>
+          <Text className="text-body text-on-dark-muted">{roleLabels[user.role]}</Text>
           {verification && (
             <View className={`mt-2 flex-row items-center gap-1 rounded-full px-3 py-1 ${verification.badge}`}>
               <Icon name={verification.icon} size={14} color={verification.tint} />

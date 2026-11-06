@@ -4,11 +4,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
-import { PatternBand } from '@/components/brand';
+import { HeroTexture, PatternBand } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
 import { LocationCard } from '@/components/location-card';
 import { QualificationList } from '@/components/qualification-list';
 import { RatingSummary, Stars } from '@/components/rating';
+import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { colors } from '@/constants/theme';
@@ -27,7 +28,7 @@ export default function ConsultantProfileScreen() {
   if (!consultant) {
     return (
       <View className="flex-1 bg-sand">
-        <TopBar />
+        <ScreenHeader title="Consultant" fallbackHref="/client" />
         <View className="flex-1 items-center justify-center gap-2 p-6">
           <Icon name="person" size={32} color={colors.textMuted} />
           <Text className="text-heading text-fg">Consultant not available</Text>
@@ -46,7 +47,8 @@ export default function ConsultantProfileScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}>
-        <View className="bg-ink px-6 pb-6">
+        <View className="overflow-hidden px-6 pb-6">
+          <HeroTexture />
           <TopBar />
           <View className="items-center gap-1.5">
             <Avatar name={c.name} size="lg" />
@@ -60,7 +62,7 @@ export default function ConsultantProfileScreen() {
             </View>
           </View>
 
-          <View className="mt-5 flex-row rounded-xl bg-ink-soft py-3">
+          <View className="mt-5 flex-row rounded-2xl border border-white/10 bg-white/10 py-3">
             <Stat label="Rating">
               <RatingSummary rating={c.rating} count={c.reviewCount} light />
             </Stat>
@@ -171,7 +173,7 @@ function TopBar() {
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Go back"
-        className="h-10 w-10 items-center justify-center rounded-full bg-ink-soft">
+        className="h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10">
         <Icon name="back" size={20} color={colors.textOnDark} />
       </Pressable>
     </View>
@@ -180,7 +182,7 @@ function TopBar() {
 
 function Stat({ label, last, children }: { label: string; last?: boolean; children: ReactNode }) {
   return (
-    <View className={`flex-1 items-center gap-1 ${last ? '' : 'border-r border-ink'}`}>
+    <View className={`flex-1 items-center gap-1 ${last ? '' : 'border-r border-white/10'}`}>
       {children}
       <Text className="text-caption text-on-dark-muted">{label}</Text>
     </View>
@@ -189,7 +191,7 @@ function Stat({ label, last, children }: { label: string; last?: boolean; childr
 
 function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <View className="gap-3 rounded-card border border-line bg-surface p-4">
+    <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
       <View className="flex-row items-center justify-between">
         <Text className="text-heading text-fg">{title}</Text>
         {right}

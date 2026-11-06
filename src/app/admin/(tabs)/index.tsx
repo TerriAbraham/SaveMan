@@ -55,7 +55,7 @@ export default function AdminOverviewScreen() {
       <AttentionRow icon="briefcase" text="Manage service categories" href="/admin/categories" />
 
       <Text className="mt-2 text-heading text-fg">Bookings by status</Text>
-      <View className="gap-2.5 rounded-card border border-line bg-surface p-4">
+      <View className="gap-2.5 rounded-card border border-line/70 bg-surface shadow-card p-4">
         {STATUS_ORDER.map((s) => {
           const count = stats.bookingsByStatus[s];
           const share = stats.bookings ? count / stats.bookings : 0;
@@ -77,7 +77,7 @@ export default function AdminOverviewScreen() {
         </Pressable>
       </View>
 
-      <View className="mt-2 gap-3 rounded-card border border-line bg-surface p-4">
+      <View className="mt-2 gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
         <Text className="text-label text-fg-muted">Signed in as {user?.email}</Text>
         <Button title="Log out" variant="outline" onPress={signOut} />
       </View>
@@ -87,7 +87,7 @@ export default function AdminOverviewScreen() {
 
 function Tile({ icon, label, value, detail }: { icon: IconName; label: string; value: number; detail: string }) {
   return (
-    <View className="w-[48.5%] gap-1 rounded-card border border-line bg-surface p-4">
+    <View className="w-[48.5%] gap-1 rounded-card border border-line/70 bg-surface shadow-card p-4">
       <View className="flex-row items-center gap-1.5">
         <Icon name={icon} size={16} color={colors.red} />
         <Text className="text-label text-fg-muted">{label}</Text>

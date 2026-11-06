@@ -22,7 +22,7 @@ export default function ConsultantProfileScreen() {
       {user?.role === 'consultant' && (
         <>
           <Button title="Edit profile" variant="secondary" onPress={openEditor} />
-          <View className="gap-3 rounded-card border border-line bg-surface p-4">
+          <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
             <View className="flex-row items-center justify-between">
               <Text className="text-heading text-fg">Qualifications & licences</Text>
               {change}

@@ -55,7 +55,7 @@ export default function AdminBookingsScreen() {
           </Text>
         }
         renderItem={({ item }) => (
-          <View className="gap-2 rounded-card border border-line bg-surface p-3.5">
+          <View className="gap-2 rounded-card border border-line/70 bg-surface shadow-card p-3.5">
             <View className="flex-row items-start justify-between gap-2">
               <Text className="flex-1 text-[15px] font-bold text-fg">{item.serviceName}</Text>
               <Text className="text-label text-fg">{formatKina(item.price)}</Text>

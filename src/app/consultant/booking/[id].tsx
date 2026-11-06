@@ -56,7 +56,7 @@ export default function ConsultantBookingScreen() {
     <View className="flex-1 bg-sand">
       <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/consultant" />
       <ScrollView contentContainerClassName="gap-4 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+        <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
           <Text className="text-body text-fg-muted">
             {confirmedNotStarted ? 'Confirmed. You can mark it completed once the session starts.' : consultantExplain[booking.status]}
@@ -72,7 +72,7 @@ export default function ConsultantBookingScreen() {
           </View>
         </View>
 
-        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+        <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">Session</Text>
           <Row icon="briefcase" label="Service" value={booking.serviceName} />
           <Row icon="calendar" label="Date" value={formatDate(booking.date)} />
@@ -86,7 +86,7 @@ export default function ConsultantBookingScreen() {
         </View>
 
         {review && (
-          <View className="gap-2 rounded-card border border-line bg-surface p-4">
+          <View className="gap-2 rounded-card border border-line/70 bg-surface shadow-card p-4">
             <Text className="text-heading text-fg">Client review</Text>
             <Stars rating={review.rating} size={16} />
             {review.comment !== '' && <Text className="text-body text-fg">{review.comment}</Text>}
@@ -101,7 +101,7 @@ export default function ConsultantBookingScreen() {
         <View className="flex-row gap-3">
           <View className="flex-1">
             <Button
-              title={`Message ${client.name.split(' ')[0]}`}
+              title="Message"
               variant="secondary"
               onPress={() => router.push({ pathname: '/consultant/chat/[id]', params: { id: client.id } })}
             />

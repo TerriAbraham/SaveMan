@@ -69,7 +69,7 @@ export default function CategoriesScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">{editingId ? 'Edit category' : 'Add a category'}</Text>
           <TextField
             label="Name"

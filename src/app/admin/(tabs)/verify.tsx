@@ -28,7 +28,7 @@ export default function VerificationQueueScreen() {
 
       <Text className="text-heading text-fg">Waiting for review ({pending.length})</Text>
       {pending.length === 0 ? (
-        <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
+        <View className="items-center gap-2 rounded-card border border-line/70 bg-surface shadow-card p-6">
           <Icon name="check" size={28} color={colors.forest} />
           <Text className="text-body text-fg-muted">All caught up. No applications waiting.</Text>
         </View>
@@ -55,7 +55,7 @@ function ApplicantCard({ consultant: c }: { consultant: Consultant }) {
   const category = categories.find((cat) => cat.id === c.categoryId)?.name ?? 'No category';
 
   return (
-    <View className="gap-3 rounded-card border border-line bg-surface p-4">
+    <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
       <Pressable
         onPress={() => router.push({ pathname: '/admin/user/[id]', params: { id: c.id } })}
         accessibilityRole="button"

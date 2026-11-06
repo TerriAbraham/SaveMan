@@ -19,7 +19,7 @@ export function EmptyState({
   onAction?: () => void;
 }) {
   return (
-    <View className="items-center gap-2 rounded-card border border-line bg-surface p-6">
+    <View className="items-center gap-2 rounded-card border border-line/70 bg-surface shadow-card p-6">
       <View className="mb-1 h-12 w-12 items-center justify-center rounded-full bg-sand">
         <Icon name={icon} size={24} color={colors.textMuted} />
       </View>

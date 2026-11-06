@@ -34,7 +34,7 @@ export default function MyServicesScreen() {
           onPress={() => openEditor(item.id)}
           accessibilityRole="button"
           accessibilityLabel={`Edit ${item.name}`}
-          className="gap-1 rounded-card border border-line bg-surface p-4 active:opacity-85">
+          className="gap-1 rounded-card border border-line/70 bg-surface shadow-card p-4 active:opacity-85">
           <View className="flex-row items-start justify-between gap-3">
             <Text className="flex-1 text-[15px] font-bold text-fg">{item.name}</Text>
             <Text className="text-[15px] font-bold text-red">{formatKina(item.price)}</Text>

@@ -6,9 +6,11 @@ const palette = require('./src/constants/palette.json');
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // Light mode only. 'class' stops NativeWind's web runtime from throwing when the page's colour scheme changes.
+  darkMode: 'class',
   theme: {
     extend: {
-      // PNG flag black, red and gold, softened with sand and rainforest green.
+      // PNG flag black, crimson and burnished gold, softened with warm neutrals and rainforest green.
       // Usage: bg-ink, text-red, bg-red-tint, border-line, text-fg-muted, text-on-dark ...
       colors: palette,
       // Type scale. No line-heights, to keep React Native's default text metrics.
@@ -21,7 +23,12 @@ module.exports = {
         caption: '12px',
       },
       borderRadius: {
-        card: '18px',
+        card: '20px',
+      },
+      // Soft, warm shadows (ink-tinted). Native needs a background colour on the element to show them.
+      boxShadow: {
+        card: '0 1px 2px rgba(23, 18, 15, 0.05), 0 6px 18px rgba(23, 18, 15, 0.06)',
+        raised: '0 8px 24px rgba(23, 18, 15, 0.14)',
       },
     },
   },

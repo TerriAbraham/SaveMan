@@ -26,7 +26,7 @@ export function ConversationList({ onOpen, emptyText }: { onOpen: (otherId: stri
             onPress={() => onOpen(item.other.id)}
             accessibilityRole="button"
             accessibilityLabel={`Conversation with ${item.other.name}${unread ? `, ${item.unread} unread` : ''}`}
-            className="flex-row items-center gap-3 rounded-card border border-line bg-surface p-3 active:opacity-85">
+            className="flex-row items-center gap-3 rounded-card border border-line/70 bg-surface shadow-card p-3 active:opacity-85">
             <Avatar name={item.other.name} />
             <View className="flex-1 gap-0.5">
               <View className="flex-row items-center justify-between gap-2">

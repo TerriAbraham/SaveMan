@@ -147,14 +147,14 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">Contact</Text>
           <TextField label="Full name" icon="person" value={name} onChangeText={setName} autoComplete="name" />
           <TextField label="Phone" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
           {errors.contact && <Text className="text-caption text-red-dark">{errors.contact}</Text>}
         </View>
 
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">About you</Text>
           <TextField label="Professional title" icon="briefcase" value={title} onChangeText={setTitle} error={errors.title} />
           <View className="gap-2">
@@ -185,7 +185,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
           />
         </View>
 
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <View className="gap-1">
             <Text className="text-heading text-fg">Qualifications & licences</Text>
             <Text className="text-body text-fg-muted">
@@ -237,7 +237,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
           </View>
         </View>
 
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <View className="gap-1">
             <Text className="text-heading text-fg">Location</Text>
             <Text className="text-body text-fg-muted">

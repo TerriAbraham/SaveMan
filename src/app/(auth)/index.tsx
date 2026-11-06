@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandMark, PatternBand, Wordmark } from '@/components/brand';
+import { BrandMark, HeroTexture, PatternBand, Wordmark } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { colors } from '@/constants/theme';
@@ -19,11 +19,13 @@ export default function WelcomeScreen() {
 
   return (
     <View className="flex-1 bg-sand">
-      <View className="gap-4 bg-ink px-6 pb-8" style={{ paddingTop: insets.top + 32 }}>
-        <View className="mb-2 flex-row items-center gap-3">
-          <BrandMark size={56} />
+      <View className="gap-4 overflow-hidden px-6 pb-10" style={{ paddingTop: insets.top + 32 }}>
+        <HeroTexture />
+        <View className="mb-3 flex-row items-center gap-3">
+          <BrandMark size={60} />
           <Wordmark light />
         </View>
+        <Text className="text-label uppercase tracking-[2px] text-gold">“Saveman” · Tok Pisin for an expert</Text>
         <Text className="text-display text-on-dark">Find trusted consultants across Papua New Guinea.</Text>
         <Text className="text-body leading-[22px] text-on-dark-muted">
           From Port Moresby to the Highlands and the Islands, expert advice is a booking away.
@@ -31,11 +33,11 @@ export default function WelcomeScreen() {
       </View>
       <PatternBand />
 
-      <View className="flex-1 justify-between gap-6 p-6" style={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-4">
-          {highlights.map((h) => (
-            <View key={h.title} className="flex-row items-center gap-3">
-              <View className="h-11 w-11 items-center justify-center rounded-xl bg-red-tint">
+      <View className="flex-1 justify-between gap-6 p-5" style={{ paddingBottom: insets.bottom + 24 }}>
+        <View className="rounded-card bg-surface px-4 py-2 shadow-card">
+          {highlights.map((h, i) => (
+            <View key={h.title} className={`flex-row items-center gap-3.5 py-3 ${i > 0 ? 'border-t border-line' : ''}`}>
+              <View className="h-11 w-11 items-center justify-center rounded-2xl bg-red-tint">
                 <Icon name={h.icon} size={20} color={colors.red} />
               </View>
               <View className="flex-1">

@@ -10,7 +10,7 @@ import { directionsUrl } from '@/utils/geo';
 /** Map preview, address and a directions link for a consultant's office. */
 export function LocationCard({ location, name, action }: { location: Location; name: string; action?: ReactNode }) {
   return (
-    <View className="gap-3 rounded-card border border-line bg-surface p-4">
+    <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
       <View className="flex-row items-center justify-between">
         <Text className="text-heading text-fg">Location</Text>
         {action}

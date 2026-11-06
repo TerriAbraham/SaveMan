@@ -42,7 +42,7 @@ function ClientProfileForm({ client }: { client: Client }) {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <TextField label="Full name" icon="person" value={name} onChangeText={setName} autoComplete="name" />
           <TextField label="Phone" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
           <View className="gap-2">

@@ -82,7 +82,7 @@ export default function BookingDetailScreen() {
           </View>
         )}
 
-        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+        <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
           <Text className="text-body text-fg-muted">{explain}</Text>
 
@@ -99,7 +99,7 @@ export default function BookingDetailScreen() {
           </Pressable>
         </View>
 
-        <View className="gap-3 rounded-card border border-line bg-surface p-4">
+        <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">Session</Text>
           <Row icon="briefcase" label="Service" value={booking.serviceName} />
           <Row icon="calendar" label="Date" value={formatDate(booking.date)} />
@@ -117,7 +117,7 @@ export default function BookingDetailScreen() {
         </View>
 
         {myReview ? (
-          <View className="gap-2 rounded-card border border-line bg-surface p-4">
+          <View className="gap-2 rounded-card border border-line/70 bg-surface shadow-card p-4">
             <Text className="text-heading text-fg">Your review</Text>
             <Stars rating={myReview.rating} size={16} />
             {myReview.comment !== '' && <Text className="text-body text-fg">{myReview.comment}</Text>}
@@ -142,7 +142,7 @@ export default function BookingDetailScreen() {
         <View className="flex-row gap-3">
           <View className="flex-1">
             <Button
-              title={`Message ${consultant.name.replace(/^Dr\.?\s+/, '').split(' ')[0]}`}
+              title="Message"
               variant="secondary"
               onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: consultant.id } })}
             />

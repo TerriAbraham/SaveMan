@@ -89,7 +89,7 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 p-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+        <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <TextField
             label="Service name"
             icon="briefcase"

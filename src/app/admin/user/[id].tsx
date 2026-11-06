@@ -133,7 +133,7 @@ export default function AdminUserScreen() {
 
 function Card({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <View className="gap-3 rounded-card border border-line bg-surface p-4">
+    <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
       {title && <Text className="text-heading text-fg">{title}</Text>}
       {children}
     </View>

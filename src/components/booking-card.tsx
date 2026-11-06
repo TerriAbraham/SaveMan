@@ -34,7 +34,7 @@ export function BookingCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${booking.serviceName} with ${personName}, ${formatDate(booking.date)}`}
-      className="gap-3 rounded-card border border-line bg-surface p-4 active:opacity-85">
+      className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4 active:opacity-85">
       <View className="flex-row items-center gap-3">
         <Avatar name={personName} size="sm" />
         <View className="flex-1">

@@ -8,6 +8,8 @@ export const colors = {
   red: palette.red.DEFAULT,
   redDark: palette.red.dark,
   gold: palette.gold.DEFAULT,
+  goldDark: palette.gold.dark,
+  inkDeep: palette.ink.deep,
   forest: palette.forest.DEFAULT,
   inkSoft: palette.ink.soft,
   sand: palette.sand,

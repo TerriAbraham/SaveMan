@@ -23,7 +23,7 @@ export function ConsultantCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${c.name}, ${c.title}, ${c.location.city}`}
-      className="gap-3 rounded-card border border-line bg-surface p-4 active:opacity-85">
+      className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4 active:opacity-85">
       <View className="flex-row gap-3">
         <Avatar name={c.name} />
         <View className="flex-1 gap-0.5">

@@ -31,22 +31,32 @@ export function PatternBand({ height = 14, count = 24 }: { height?: number; coun
   );
 }
 
-/** App logo, matching the app icon: a feathered headdress on a diagonal split like the PNG flag (red upper-right, black lower-left). */
+/** App logo, matching the app icon: a feathered headdress with a tapa headband on deep ink with a crimson glow. */
 export function BrandMark({ size = 56 }: { size?: number }) {
-  // A rotated square whose lower-left edge runs exactly along the tile's diagonal.
-  const side = size * 2;
-  const centre = size * Math.SQRT1_2;
   return (
     <View
-      className="items-center justify-center overflow-hidden border-2 border-gold bg-ink"
-      style={{ width: size, height: size, borderRadius: size * 0.28 }}
+      className="overflow-hidden border border-gold/50 bg-ink-deep"
+      style={{ width: size, height: size, borderRadius: size * 0.26 }}
       accessibilityRole="image"
       accessibilityLabel="SaveMan logo">
-      <View
-        className="absolute rotate-45 bg-red"
-        style={{ width: side, height: side, left: centre - side / 2, top: -centre - side / 2 }}
+      <Image source={require('@/assets/images/logo.png')} style={{ width: '100%', height: '100%' }} />
+    </View>
+  );
+}
+
+/**
+ * Brand background for dark headers: deep ink, a crimson glow top-right and faint tapa-cloth linework.
+ * Place it as the first child of a header; the header should have `overflow-hidden`.
+ */
+export function HeroTexture() {
+  return (
+    <View className="absolute inset-0 bg-ink-deep" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Image
+        source={require('@/assets/images/hero-texture.png')}
+        contentFit="cover"
+        contentPosition="top"
+        style={{ width: '100%', height: '100%' }}
       />
-      <Image source={require('@/assets/images/logo.png')} style={{ width: size * 0.92, height: size * 0.92 }} />
     </View>
   );
 }
@@ -55,7 +65,7 @@ export function Wordmark({ light }: { light?: boolean }) {
   return (
     <View>
       <Text className={`text-[26px] font-extrabold tracking-[-0.5px] ${light ? 'text-on-dark' : 'text-ink'}`}>SaveMan</Text>
-      <Text className="-mt-0.5 text-[11px] font-bold tracking-[4px] text-gold">CONSULTANT</Text>
+      <Text className={`-mt-0.5 text-[11px] font-bold tracking-[4px] ${light ? 'text-gold' : 'text-gold-dark'}`}>CONSULTANT</Text>
     </View>
   );
 }
