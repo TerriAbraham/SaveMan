@@ -5,15 +5,19 @@ import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationPicker } from '@/components/maps/location-picker';
+import { QualificationList } from '@/components/qualification-list';
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { SmallButton } from '@/components/ui/small-button';
 import { TextField } from '@/components/ui/text-field';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import type { Consultant } from '@/data/types';
 import { places } from '@/data/users';
 import { isInPNG, nearestPlace, type Coordinate } from '@/utils/geo';
+
+const emptyDraft = { name: '', issuer: '', year: '', licence: '' };
 
 export default function EditProfileScreen() {
   const { user } = useAuth();
@@ -39,9 +43,18 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     latitude: consultant.location.latitude,
     longitude: consultant.location.longitude,
   });
+  const [qualifications, setQualifications] = useState(consultant.qualifications);
+  const [draft, setDraft] = useState(emptyDraft);
   const [mapActive, setMapActive] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [errors, setErrors] = useState<{ contact?: string; title?: string; category?: string; rate?: string; pin?: string }>({});
+  const [errors, setErrors] = useState<{
+    contact?: string;
+    title?: string;
+    category?: string;
+    rate?: string;
+    qualification?: string;
+    pin?: string;
+  }>({});
 
   // City and province always follow the pin, so filters and the profile stay consistent.
   const centre = nearestPlace(pin);
@@ -73,6 +86,27 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     }
   }
 
+  function addQualification() {
+    const year = Number(draft.year);
+    const error =
+      draft.name.trim().length < 3
+        ? 'Enter the qualification or licence name.'
+        : draft.issuer.trim().length < 2
+          ? 'Enter who issued it.'
+          : !Number.isInteger(year) || year < 1950 || year > new Date().getFullYear()
+            ? 'Enter the year it was awarded, e.g. 2018.'
+            : undefined;
+    setErrors((e) => ({ ...e, qualification: error }));
+    if (error) return;
+
+    const licenceNumber = draft.licence.trim();
+    setQualifications((prev) => [
+      ...prev,
+      { id: `q-${Date.now()}`, name: draft.name.trim(), issuer: draft.issuer.trim(), year, ...(licenceNumber && { licenceNumber }) },
+    ]);
+    setDraft(emptyDraft);
+  }
+
   function save() {
     const next: typeof errors = {};
     const hourlyRate = Number(rate);
@@ -80,6 +114,10 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     if (!categories.some((c) => c.id === categoryId)) next.category = 'Choose your area of expertise.';
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || !Number.isInteger(hourlyRate)) {
       next.rate = 'Enter a whole number of Kina, e.g. 200.';
+    }
+    // Don't silently drop a qualification that was typed but never added.
+    if (Object.values(draft).some((v) => v.trim() !== '')) {
+      next.qualification = 'Tap “Add qualification” to keep it, or clear the fields.';
     }
     if (!isInPNG(pin)) next.pin = 'Place your pin inside Papua New Guinea.';
     setErrors(next);
@@ -95,6 +133,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
       categoryId,
       bio: bio.trim(),
       hourlyRate,
+      qualifications,
       location: { ...centre, address: address.trim(), latitude: pin.latitude, longitude: pin.longitude },
     });
     router.back();
@@ -144,6 +183,58 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
             keyboardType="number-pad"
             error={errors.rate}
           />
+        </View>
+
+        <View className="gap-4 rounded-card border border-line bg-surface p-4">
+          <View className="gap-1">
+            <Text className="text-heading text-fg">Qualifications & licences</Text>
+            <Text className="text-body text-fg-muted">
+              Degrees, certificates and practising licences. Clients see these on your profile, and SaveMan checks them
+              when verifying you.
+            </Text>
+          </View>
+          <QualificationList
+            qualifications={qualifications}
+            onRemove={(id) => setQualifications((prev) => prev.filter((q) => q.id !== id))}
+          />
+
+          <View className="gap-3 rounded-xl bg-sand p-3">
+            <TextField
+              label="Qualification or licence"
+              icon="award"
+              value={draft.name}
+              onChangeText={(name) => setDraft((d) => ({ ...d, name }))}
+              placeholder="e.g. Certified Practising Accountant"
+            />
+            <TextField
+              label="Issued by"
+              value={draft.issuer}
+              onChangeText={(issuer) => setDraft((d) => ({ ...d, issuer }))}
+              placeholder="e.g. CPA PNG"
+            />
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <TextField
+                  label="Year"
+                  value={draft.year}
+                  onChangeText={(v) => setDraft((d) => ({ ...d, year: v.replace(/[^0-9]/g, '') }))}
+                  placeholder="2018"
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+              <View className="flex-[1.6]">
+                <TextField
+                  label="Licence no. (optional)"
+                  value={draft.licence}
+                  onChangeText={(licence) => setDraft((d) => ({ ...d, licence }))}
+                  autoCapitalize="characters"
+                />
+              </View>
+            </View>
+            {errors.qualification && <Text className="text-caption text-red-dark">{errors.qualification}</Text>}
+            <SmallButton label="Add qualification" icon="award" variant="outline" onPress={addQualification} />
+          </View>
         </View>
 
         <View className="gap-4 rounded-card border border-line bg-surface p-4">

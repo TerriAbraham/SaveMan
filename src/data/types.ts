@@ -40,6 +40,15 @@ export interface Service {
   price: number; // PGK (Kina)
 }
 
+/** A degree, certificate or professional licence, shown to clients and checked by the admin before verifying. */
+export interface Qualification {
+  id: string;
+  name: string; // e.g. "Certified Practising Accountant"
+  issuer: string; // e.g. "CPA PNG"
+  year: number;
+  licenceNumber?: string; // registration or licence number, if there is one
+}
+
 /** A block of working time, "HH:mm" in local time. */
 export interface TimeWindow {
   start: string;
@@ -55,6 +64,7 @@ export interface Consultant extends BaseUser {
   categoryId: string;
   bio: string;
   expertise: string[];
+  qualifications: Qualification[];
   services: Service[];
   availability: WeeklyAvailability;
   hourlyRate: number; // PGK (Kina)

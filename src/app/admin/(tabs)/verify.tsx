@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
+import { QualificationList } from '@/components/qualification-list';
 import { SmallButton } from '@/components/ui/small-button';
 import { UserBadges } from '@/components/user-badges';
 import { colors } from '@/constants/theme';
@@ -82,6 +83,15 @@ function ApplicantCard({ consultant: c }: { consultant: Consultant }) {
         <Text className="text-body text-fg" numberOfLines={3}>
           {c.bio || 'No bio provided.'}
         </Text>
+      </View>
+
+      <View className="gap-2">
+        <Text className="text-label text-fg">Qualifications & licences</Text>
+        {c.qualifications.length === 0 ? (
+          <Text className="text-caption text-red-dark">None listed. Ask the applicant for proof before approving.</Text>
+        ) : (
+          <QualificationList qualifications={c.qualifications} />
+        )}
       </View>
 
       <View className="flex-row gap-2">

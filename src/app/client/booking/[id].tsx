@@ -16,6 +16,7 @@ import { isUpcoming } from '@/utils/availability';
 import { canReview, hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatDuration, formatKina } from '@/utils/format';
+import { callPhone } from '@/utils/phone';
 
 export default function BookingDetailScreen() {
   const { id, justBooked } = useLocalSearchParams<{ id: string; justBooked?: string }>();
@@ -138,11 +139,18 @@ export default function BookingDetailScreen() {
           )
         )}
 
-        <Button
-          title={`Message ${consultant.name.replace(/^Dr\.?\s+/, '').split(' ')[0]}`}
-          variant="secondary"
-          onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: consultant.id } })}
-        />
+        <View className="flex-row gap-3">
+          <View className="flex-1">
+            <Button
+              title={`Message ${consultant.name.replace(/^Dr\.?\s+/, '').split(' ')[0]}`}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: consultant.id } })}
+            />
+          </View>
+          <View className="flex-1">
+            <Button title="Call" variant="outline" onPress={() => callPhone(consultant.name, consultant.phone)} />
+          </View>
+        </View>
         {canCancel && <Button title="Cancel booking" variant="ghost" onPress={confirmCancel} />}
       </ScrollView>
     </View>

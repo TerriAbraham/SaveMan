@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Text, View } from 'react-native';
 
 import { colors } from '@/constants/theme';
@@ -30,7 +31,7 @@ export function PatternBand({ height = 14, count = 24 }: { height?: number; coun
   );
 }
 
-/** App logo: diagonal split like the PNG flag (red upper-right, black lower-left) with a gold star. */
+/** App logo, matching the app icon: a feathered headdress on a diagonal split like the PNG flag (red upper-right, black lower-left). */
 export function BrandMark({ size = 56 }: { size?: number }) {
   // A rotated square whose lower-left edge runs exactly along the tile's diagonal.
   const side = size * 2;
@@ -38,17 +39,14 @@ export function BrandMark({ size = 56 }: { size?: number }) {
   return (
     <View
       className="items-center justify-center overflow-hidden border-2 border-gold bg-ink"
-      style={{ width: size, height: size, borderRadius: size * 0.28 }}>
+      style={{ width: size, height: size, borderRadius: size * 0.28 }}
+      accessibilityRole="image"
+      accessibilityLabel="SaveMan logo">
       <View
         className="absolute rotate-45 bg-red"
         style={{ width: side, height: side, left: centre - side / 2, top: -centre - side / 2 }}
       />
-      <Text className="font-black text-on-dark" style={{ fontSize: size * 0.5 }}>
-        S
-      </Text>
-      <Text className="absolute text-gold" style={{ fontSize: size * 0.22, bottom: size * 0.06, left: size * 0.12 }}>
-        ★
-      </Text>
+      <Image source={require('@/assets/images/logo.png')} style={{ width: size * 0.92, height: size * 0.92 }} />
     </View>
   );
 }

@@ -18,7 +18,7 @@ export interface SignUpInput {
 
 /** Fields a consultant can change themselves: profile, services and availability. */
 export type ConsultantProfileChanges = Partial<
-  Pick<Consultant, 'title' | 'categoryId' | 'bio' | 'hourlyRate' | 'location' | 'services' | 'availability'>
+  Pick<Consultant, 'title' | 'categoryId' | 'bio' | 'hourlyRate' | 'location' | 'qualifications' | 'services' | 'availability'>
 >;
 
 /** Contact details any user can change. `city` applies to clients only. */
@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         categoryId: input.categoryId ?? '',
         bio: '',
         expertise: [],
+        qualifications: [],
         services: [],
         availability: standardWeek,
         hourlyRate: 0,

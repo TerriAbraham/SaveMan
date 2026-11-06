@@ -7,6 +7,7 @@ import { Avatar } from '@/components/avatar';
 import { PatternBand } from '@/components/brand';
 import { Icon, type IconName } from '@/components/icon';
 import { LocationCard } from '@/components/location-card';
+import { QualificationList } from '@/components/qualification-list';
 import { RatingSummary, Stars } from '@/components/rating';
 import { Button } from '@/components/ui/button';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -14,6 +15,7 @@ import { colors } from '@/constants/theme';
 import { useData } from '@/context/data-context';
 import { useConsultantReviews, usePublicConsultant } from '@/hooks/use-directory';
 import { formatDate, formatDuration, formatKina } from '@/utils/format';
+import { callPhone } from '@/utils/phone';
 
 export default function ConsultantProfileScreen() {
   const { categories } = useData();
@@ -83,6 +85,10 @@ export default function ConsultantProfileScreen() {
             </View>
           </Section>
 
+          <Section title="Qualifications & licences">
+            <QualificationList qualifications={c.qualifications} />
+          </Section>
+
           <Section title="Services">
             {c.services.map((s, i) => (
               <Pressable
@@ -131,6 +137,13 @@ export default function ConsultantProfileScreen() {
           <Text className="text-title text-fg">{formatKina(startingPrice)}</Text>
         </View>
         <Pressable
+          onPress={() => callPhone(c.name, c.phone)}
+          accessibilityRole="button"
+          accessibilityLabel={`Call ${c.name}`}
+          className="h-[52px] w-[52px] items-center justify-center rounded-xl border-[1.5px] border-line active:opacity-70">
+          <Icon name="phone" size={22} color={colors.ink} />
+        </Pressable>
+        <Pressable
           onPress={() => router.push({ pathname: '/client/chat/[id]', params: { id: c.id } })}
           accessibilityRole="button"
           accessibilityLabel={`Message ${c.name}`}
@@ -139,7 +152,7 @@ export default function ConsultantProfileScreen() {
         </Pressable>
         <View className="flex-1">
           <Button
-            title="Book a session"
+            title="Book now"
             onPress={() => router.push({ pathname: '/client/book/[id]', params: { id: c.id } })}
           />
         </View>

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/avatar';
 import { BookingStatusPill } from '@/components/booking-status';
 import { Icon, type IconName } from '@/components/icon';
+import { QualificationList } from '@/components/qualification-list';
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
 import { UserBadges } from '@/components/user-badges';
@@ -78,6 +79,10 @@ export default function AdminUserScreen() {
             />
             {user.reviewCount > 0 && <Row icon="star" text={`${user.rating.toFixed(1)} from ${user.reviewCount} reviews`} />}
             {user.bio !== '' && <Text className="text-body text-fg">{user.bio}</Text>}
+            <View className="gap-2 border-t border-line pt-3">
+              <Text className="text-label text-fg">Qualifications & licences</Text>
+              <QualificationList qualifications={user.qualifications} emptyText="None listed." />
+            </View>
             {user.verification !== 'verified' && <Button title="Approve consultant" onPress={() => actions.approve(user)} />}
             {user.verification !== 'rejected' && (
               <Button

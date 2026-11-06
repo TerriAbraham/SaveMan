@@ -16,6 +16,7 @@ import { useBookingActions } from '@/hooks/use-booking-actions';
 import { canAccept, canComplete, canDecline, hasStarted } from '@/utils/booking-rules';
 import { formatTime } from '@/utils/dates';
 import { formatDate, formatDuration, formatKina } from '@/utils/format';
+import { callPhone } from '@/utils/phone';
 
 const consultantExplain = {
   pending: 'Accept to confirm this session, or decline if you can’t take it.',
@@ -97,11 +98,18 @@ export default function ConsultantBookingScreen() {
           <Button title="Decline request" variant="outline" onPress={() => actions.decline(booking, client.name)} />
         )}
         {canComplete(booking) && <Button title="Mark as completed" onPress={() => actions.complete(booking)} />}
-        <Button
-          title={`Message ${client.name.split(' ')[0]}`}
-          variant="secondary"
-          onPress={() => router.push({ pathname: '/consultant/chat/[id]', params: { id: client.id } })}
-        />
+        <View className="flex-row gap-3">
+          <View className="flex-1">
+            <Button
+              title={`Message ${client.name.split(' ')[0]}`}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/consultant/chat/[id]', params: { id: client.id } })}
+            />
+          </View>
+          <View className="flex-1">
+            <Button title="Call" variant="outline" onPress={() => callPhone(client.name, client.phone)} />
+          </View>
+        </View>
       </ScrollView>
     </View>
   );

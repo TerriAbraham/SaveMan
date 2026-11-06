@@ -144,6 +144,10 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-business',
     bio: 'Fifteen years helping PNG SMEs plan, raise capital and grow. Former adviser to the Small Business Development Corporation.',
     expertise: ['Business plans', 'SME growth', 'Funding applications'],
+    qualifications: [
+      { id: 'q-1-1', name: 'PhD, Business Management', issuer: 'University of Papua New Guinea', year: 2011 },
+      { id: 'q-1-2', name: 'Certified Management Consultant', issuer: 'Institute of Management Consultants', year: 2014, licenceNumber: 'CMC-0482' },
+    ],
     services: [
       { id: 's-1-1', name: 'Business plan review', description: 'Detailed feedback on your plan and financial projections.', durationMins: 60, price: 250 },
       { id: 's-1-2', name: 'Funding application support', description: 'Prepare a strong application for a bank loan or grant.', durationMins: 90, price: 375 },
@@ -171,6 +175,11 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-finance',
     bio: 'Tax returns, IRC compliance and bookkeeping set-up for small businesses and individuals.',
     expertise: ['Tax', 'Bookkeeping', 'IRC compliance'],
+    qualifications: [
+      { id: 'q-2-1', name: 'Bachelor of Commerce (Accounting)', issuer: 'University of Papua New Guinea', year: 2015 },
+      { id: 'q-2-2', name: 'Certified Practising Accountant', issuer: 'CPA PNG', year: 2017, licenceNumber: 'CPA-2291' },
+      { id: 'q-2-3', name: 'Registered Tax Agent', issuer: 'Internal Revenue Commission', year: 2018, licenceNumber: 'TA-1167' },
+    ],
     services: [
       { id: 's-2-1', name: 'Personal tax return', description: 'Prepare and lodge your annual return with the IRC.', durationMins: 60, price: 200 },
       { id: 's-2-2', name: 'Small business bookkeeping set-up', description: 'Set up simple books and monthly routines.', durationMins: 90, price: 300 },
@@ -198,6 +207,10 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-legal',
     bio: 'Advises on customary land agreements, IPA company registration and commercial contracts.',
     expertise: ['Land law', 'IPA registration', 'Contracts'],
+    qualifications: [
+      { id: 'q-3-1', name: 'Bachelor of Laws', issuer: 'University of Papua New Guinea', year: 2012 },
+      { id: 'q-3-2', name: 'Practising Certificate', issuer: 'Papua New Guinea Law Society', year: 2013, licenceNumber: 'PC-3390' },
+    ],
     services: [
       { id: 's-3-1', name: 'Contract review', description: 'Plain-language review of a commercial contract or lease.', durationMins: 60, price: 350 },
       { id: 's-3-2', name: 'Company registration (IPA)', description: 'Register and set up your company with the IPA.', durationMins: 60, price: 300 },
@@ -225,6 +238,10 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-agri',
     bio: 'Works with Highlands coffee growers and cooperatives on quality, certification and export.',
     expertise: ['Coffee', 'Cooperatives', 'Export certification'],
+    qualifications: [
+      { id: 'q-4-1', name: 'Bachelor of Agriculture', issuer: 'PNG University of Natural Resources and Environment', year: 2013 },
+      { id: 'q-4-2', name: 'Q Arabica Grader', issuer: 'Coffee Quality Institute', year: 2017, licenceNumber: 'QG-58810' },
+    ],
     services: [
       { id: 's-4-1', name: 'Coffee quality assessment', description: 'On-farm review of processing and bean quality.', durationMins: 120, price: 280 },
       { id: 's-4-2', name: 'Cooperative set-up', description: 'Structure and register a growers cooperative.', durationMins: 90, price: 220 },
@@ -252,6 +269,11 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-it',
     bio: 'Network set-up, cloud migration and security reviews for offices and schools.',
     expertise: ['Networking', 'Cloud', 'Cybersecurity'],
+    qualifications: [
+      { id: 'q-5-1', name: 'Bachelor of Computer Science', issuer: 'PNG University of Technology', year: 2016 },
+      { id: 'q-5-2', name: 'CCNA (Cisco Certified Network Associate)', issuer: 'Cisco', year: 2019, licenceNumber: 'CSCO-1182934' },
+      { id: 'q-5-3', name: 'Security+', issuer: 'CompTIA', year: 2021 },
+    ],
     services: [
       { id: 's-5-1', name: 'Office network set-up', description: 'Design and install a reliable office network.', durationMins: 120, price: 400 },
       { id: 's-5-2', name: 'Cybersecurity review', description: 'Find and fix security risks in your systems.', durationMins: 90, price: 330 },
@@ -279,6 +301,9 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-hr',
     bio: 'CV writing, interview coaching and HR policy for growing teams.',
     expertise: ['CV writing', 'Interview coaching', 'HR policy'],
+    qualifications: [
+      { id: 'q-6-1', name: 'Bachelor of Human Resource Management', issuer: 'Divine Word University', year: 2018 },
+    ],
     services: [
       { id: 's-6-1', name: 'CV rewrite', description: 'A professional CV tailored to the job you want.', durationMins: 60, price: 120 },
       { id: 's-6-2', name: 'Interview coaching', description: 'Practice interviews with honest feedback.', durationMins: 60, price: 120 },
@@ -306,6 +331,9 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-business',
     bio: 'Helps guesthouses and tour operators in the islands market and price their services.',
     expertise: ['Tourism', 'Marketing', 'Pricing'],
+    qualifications: [
+      { id: 'q-7-1', name: 'Diploma in Tourism and Hospitality Management', issuer: 'University of Goroka', year: 2017 },
+    ],
     services: [
       { id: 's-7-1', name: 'Guesthouse marketing plan', description: 'Reach more visitors online and through agents.', durationMins: 90, price: 270 },
       { id: 's-7-2', name: 'Tour pricing review', description: 'Set prices that cover costs and stay competitive.', durationMins: 60, price: 180 },
@@ -332,6 +360,10 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-health',
     bio: 'Designs community health programs and workplace wellbeing plans.',
     expertise: ['Community health', 'Program design', 'Workplace wellbeing'],
+    qualifications: [
+      { id: 'q-8-1', name: 'Master of Public Health', issuer: 'University of Papua New Guinea', year: 2012 },
+      { id: 'q-8-2', name: 'Registered Medical Practitioner', issuer: 'Medical Board of PNG', year: 2008, licenceNumber: 'MB-1043' },
+    ],
     services: [
       { id: 's-8-1', name: 'Workplace wellbeing plan', description: 'A health and wellbeing program for your staff.', durationMins: 90, price: 300 },
       { id: 's-8-2', name: 'Community health program design', description: 'Design and evaluation for NGO health programs.', durationMins: 120, price: 400 },
@@ -358,6 +390,7 @@ export const consultants: Consultant[] = [
     categoryId: 'cat-finance',
     bio: 'Savings, superannuation and loan planning for families.',
     expertise: ['Superannuation', 'Savings', 'Loans'],
+    qualifications: [],
     services: [
       { id: 's-9-1', name: 'Family budget plan', description: 'A realistic household budget and savings plan.', durationMins: 60, price: 130 },
       { id: 's-9-2', name: 'Superannuation check-up', description: 'Understand and grow your super balance.', durationMins: 60, price: 130 },

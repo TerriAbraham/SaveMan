@@ -2,7 +2,7 @@
 
 A mobile app for Papua New Guinea that connects **clients** with **verified consultants** in business, finance, law, IT, agriculture, HR and health. Clients search, book and message consultants; consultants manage their bookings, services and hours; an **admin** verifies consultants and keeps the platform safe.
 
-Built with Expo (React Native) and styled with NativeWind, using a design inspired by the PNG flag (black, red and gold).
+Built with Expo (React Native) and styled with NativeWind, using a design inspired by the PNG flag (black, red and gold). The logo is a feathered headdress with a tapa-pattern headband.
 
 > **Data note:** this version runs entirely on the phone with **built-in dummy data held in memory**. There is no backend server or database in this repository, so any changes (new accounts, bookings, messages) reset when the app reloads. See [Limitations](#limitations).
 
@@ -13,23 +13,23 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 ### Clients
 - **Find consultants:** search by name, service or location, filter by service category and town.
 - **Map:** every verified consultant shown as a pin; tap a pin to open their profile.
-- **Consultant profiles:** bio, services and prices, expertise, location map with directions, rating and reviews.
+- **Consultant profiles:** bio, qualifications and licences, services and prices, expertise, location map with directions, rating and reviews.
 - **Book a session:** choose a service, in person / video / phone, a date in the next 14 days and a free time slot.
 - **My bookings:** upcoming and past sessions, booking details, cancel an upcoming booking.
 - **Reviews:** rate a session (1–5 stars + comment) once it has been completed.
-- **Messages:** chat with consultants, with unread badges.
+- **Messages and calls:** chat with consultants (with unread badges), or tap Call on a profile or booking to open the phone dialer.
 - **Profile:** edit name, phone and town.
 
 ### Consultants
 - **Dashboard:** new requests (accept / decline), sessions ready to mark completed, upcoming sessions, history, earnings and rating.
 - **Services:** add, edit and delete services (name, description, length, price).
 - **Availability:** set working hours per weekday (up to 3 time blocks per day); clients only see free slots inside these hours.
-- **Edit profile:** name, phone, title, category, bio, hourly rate, address and map pin (drag the pin or use current location).
-- **Messages:** reply to clients.
+- **Edit profile:** name, phone, title, category, bio, hourly rate, qualifications and licences, address and map pin (drag the pin or use current location).
+- **Messages and calls:** reply to clients, or call them from a booking.
 
 ### Admin
 - **Overview:** number of users, consultants, bookings and reviews; bookings by status.
-- **Verify:** approve or reject consultant applications. Only verified consultants are visible to clients.
+- **Verify:** check each applicant's qualifications and licences, then approve or reject. Only verified consultants are visible to clients.
 - **Users:** search all clients and consultants, view their details and bookings, suspend or reactivate accounts.
 - **Bookings:** every booking on the platform, searchable and filterable by status.
 - **Reviews:** remove inappropriate reviews (and restore them). Removed reviews are hidden and no longer count towards ratings.
