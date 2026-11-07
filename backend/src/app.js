@@ -44,8 +44,9 @@ const minutes = (ms) => Math.max(1, Math.ceil(ms / 60000));
  * @param {{ auth: number, mfa: number }} [opts.limits] requests per IP per 15 minutes
  * @param {number | boolean} [opts.trustProxy] proxies in front of the API (1 on Render), so rate limits see real client IPs
  * @param {'turso' | 'local'} [opts.database] shown by /api/health
+ * @param {string} [opts.turso] when on the local database: why Turso isn't used (a short code, no secrets)
  */
-export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false, database = 'local' }) {
+export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false, database = 'local', turso }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -208,7 +209,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   // ---- Routes --------------------------------------------------------------------------------
 
   // `database` says where data is kept ('turso', or 'local' if Turso isn't set up or couldn't be reached).
-  app.get('/api/health', (_req, res) => res.json({ ok: true, database }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, database, ...(database === 'local' && turso && { turso }) }));
 
   app.post('/api/auth/register', authLimiter, async (req, res) => {
     const role = req.body?.role;

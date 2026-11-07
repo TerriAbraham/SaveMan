@@ -10,14 +10,25 @@ const TURSO_ATTEMPTS = 3;
 /** An error's code and message, for the log. Database errors never include the token. */
 const describe = (err) => [err?.code, err?.message ?? String(err)].filter(Boolean).join(': ');
 
+/** Why Turso couldn't be used, as a short code that's safe to show publicly on /api/health. */
+function tursoProblem(err) {
+  const text = describe(err);
+  if (/\b(401|403)\b|unauthori[sz]ed|forbidden|jwt|token/i.test(text)) return 'token_rejected';
+  if (/\b404\b|not found/i.test(text)) return 'database_not_found';
+  if (/ENOTFOUND|EAI_AGAIN|ECONN|ETIMEDOUT|fetch failed|network/i.test(text)) return 'unreachable';
+  return 'error';
+}
+
 /**
  * Turso when it's set up and reachable. Otherwise a local database file, so the API still starts
  * (on Render's free plan that file is wiped on restart) and the log says what to fix.
  */
 async function openDatabase() {
+  let turso = 'not_configured';
   if (TURSO_DATABASE_URL) {
     const host = new URL(TURSO_DATABASE_URL).host;
     if (!TURSO_AUTH_TOKEN) {
+      turso = 'missing_token';
       console.error('TURSO_DATABASE_URL is set but TURSO_AUTH_TOKEN is empty. Add the token from the Turso dashboard.');
     } else {
       for (let attempt = 1; attempt <= TURSO_ATTEMPTS; attempt++) {
@@ -27,6 +38,7 @@ async function openDatabase() {
           console.log(`Using Turso database ${host}${seeded ? ` (seeded ${seeded} demo accounts)` : ''}`);
           return { db, database: 'turso' };
         } catch (err) {
+          turso = tursoProblem(err);
           console.error(`Couldn't use Turso database ${host} (attempt ${attempt} of ${TURSO_ATTEMPTS}): ${describe(err)}`);
           if (attempt < TURSO_ATTEMPTS) await sleep(attempt * 2000);
         }
@@ -40,11 +52,14 @@ async function openDatabase() {
   const db = await openDb({ path: DB_PATH });
   const seeded = await seedIfEmpty(db);
   console.log(`Using local database ${DB_PATH}${seeded ? ` (seeded ${seeded} demo accounts)` : ''}`);
-  return { db, database: 'local' };
+  if (process.env.NODE_ENV === 'production' && turso === 'not_configured') {
+    console.error('TURSO_DATABASE_URL is not set, so data is kept in a local file. Set it (and TURSO_AUTH_TOKEN) to keep data permanently.');
+  }
+  return { db, database: 'local', turso };
 }
 
-const { db, database } = await openDatabase();
-const app = createApp({ db, keys: deriveKeys(), trustProxy: TRUST_PROXY, database });
+const { db, database, turso } = await openDatabase();
+const app = createApp({ db, keys: deriveKeys(), trustProxy: TRUST_PROXY, database, turso });
 
 const server = app.listen(PORT, HOST, () => {
   const lan = Object.values(networkInterfaces())
