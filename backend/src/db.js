@@ -126,7 +126,14 @@ export async function openDb({ path, url, authToken }) {
     await client.executeMultiple('PRAGMA journal_mode = WAL;');
   }
   // Local only: Turso runs statements over HTTP, so a per-connection pragma wouldn't stick.
-  await client.executeMultiple(url ? SCHEMA : `PRAGMA foreign_keys = ON;${SCHEMA}`);
+  if (!url) await client.execute('PRAGMA foreign_keys = ON');
+  // One statement per batch entry, comments removed: Turso rejects the schema sent as a single
+  // multi-statement script (HTTP 400), while a plain batch works on every server.
+  const schema = SCHEMA.replace(/--[^\n]*/g, '')
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  await client.batch(schema, 'write');
 
   const run = (text, args) => client.execute({ sql: text, args });
   return {

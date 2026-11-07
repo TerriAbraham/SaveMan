@@ -19,6 +19,24 @@ function tursoProblem(err) {
   return 'error';
 }
 
+/** A message with addresses removed, short enough for /api/health. */
+const scrub = (text) => text.replace(/[a-z]+:\/\/\S+/gi, '<url>').replace(/[\w.-]+\.turso\.io/gi, '<host>').slice(0, 300);
+
+/** TEMPORARY: Turso's raw reply (status and body) to `SELECT 1`, scrubbed. */
+async function probeTurso() {
+  try {
+    const res = await fetch(new URL('/v2/pipeline', TURSO_DATABASE_URL), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TURSO_AUTH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ type: 'execute', stmt: { sql: 'SELECT 1' } }, { type: 'close' }] }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    return scrub(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  } catch (err) {
+    return scrub(describe(err));
+  }
+}
+
 /**
  * Turso when it's set up and reachable. Otherwise a local database file, so the API still starts
  * (on Render's free plan that file is wiped on restart) and the log says what to fix.
@@ -33,18 +51,23 @@ async function openDatabase() {
       console.error('TURSO_DATABASE_URL is set but TURSO_AUTH_TOKEN is empty. Add the token from the Turso dashboard.');
     } else {
       for (let attempt = 1; attempt <= TURSO_ATTEMPTS; attempt++) {
+        let stage = 'schema';
         try {
           const db = await openDb({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
+          stage = 'seed';
           const seeded = await seedIfEmpty(db);
           console.log(`Using Turso database ${host}${seeded ? ` (seeded ${seeded} demo accounts)` : ''}`);
           return { db, database: 'turso' };
         } catch (err) {
           turso = tursoProblem(err);
-          tursoDetail = describe(err).replace(/[a-z]+:\/\/\S+/gi, '<url>').replace(/[\w.-]+\.turso\.io/gi, '<host>').slice(0, 300);
-          console.error(`Couldn't use Turso database ${host} (attempt ${attempt} of ${TURSO_ATTEMPTS}): ${describe(err)}`);
+          tursoDetail = scrub(`${stage}: ${describe(err)}`);
+          console.error(`Couldn't use Turso database ${host} (attempt ${attempt} of ${TURSO_ATTEMPTS}, ${stage}): ${describe(err)}`);
           if (attempt < TURSO_ATTEMPTS) await sleep(attempt * 2000);
         }
       }
+      // TEMPORARY: what Turso says to the simplest possible request, to tell a bad setting from a bad query.
+      tursoDetail += ` | probe: ${await probeTurso()}`;
+      console.error(`Turso probe: ${tursoDetail}`);
     }
     console.error(
       'Falling back to a local database: changes are lost when the server restarts. ' +
