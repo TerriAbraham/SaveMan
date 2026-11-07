@@ -34,14 +34,34 @@ export interface ApiUser {
   email: string;
   name: string;
   role: Role;
+  /** An authenticator app is set up. */
   mfaEnabled: boolean;
+  /** Login codes are emailed: always for admins and consultants, by choice for clients. */
+  emailMfaEnabled: boolean;
   mfaRequired: boolean;
 }
 
+/** An emailed 6-digit code: where it went, and the code itself only when the server can't send email yet. */
+export interface EmailSent {
+  sentTo: string;
+  devCode?: string;
+}
+
+/** Password accepted; a code is needed to finish logging in. */
+export interface MfaChallenge {
+  status: 'mfa_required';
+  mfaToken: string;
+  user: ApiUser;
+  /** `email` is the masked address codes go to. */
+  methods: { authenticator: boolean; email: string };
+  /** Set when a code was emailed straight away (accounts without an authenticator app). */
+  email?: EmailSent;
+  /** Why that email couldn't be sent; the screen can ask for another. */
+  emailError?: string;
+}
+
 /** What comes back after a password: a session, or a short-lived token for the MFA step. */
-export type LoginResponse =
-  | { status: 'ok'; token: string; user: ApiUser }
-  | { status: 'mfa_required' | 'mfa_setup_required'; mfaToken: string; user: ApiUser };
+export type LoginResponse = { status: 'ok'; token: string; user: ApiUser } | MfaChallenge;
 
 export interface MfaVerifyResponse {
   status: 'ok';
@@ -66,7 +86,9 @@ export interface MfaEnableResponse {
 }
 
 export interface MfaStatus {
+  /** Authenticator app set up. */
   enabled: boolean;
+  emailEnabled: boolean;
   required: boolean;
   enabledAt: number | null;
   recoveryCodesRemaining: number;
@@ -74,6 +96,9 @@ export interface MfaStatus {
 
 /** A 6-digit code from the authenticator app, or one of the recovery codes. */
 export type SecondFactor = { code: string } | { recoveryCode: string };
+
+/** What finishes a login: the emailed code, or the authenticator (or a recovery code). */
+export type LoginFactor = SecondFactor | { emailCode: string };
 
 /** The hosted API (Render's free plan) sleeps when idle and can take about a minute to wake. */
 const REQUEST_TIMEOUT_MS = 75_000;
@@ -151,7 +176,9 @@ export const authApi = {
     categoryId?: string;
   }) =>
     request<LoginResponse>('POST', '/api/auth/register', input),
-  verifyMfa: (mfaToken: string, factor: SecondFactor) => request<MfaVerifyResponse>('POST', '/api/auth/mfa/verify', factor, mfaToken),
+  verifyMfa: (mfaToken: string, factor: LoginFactor) => request<MfaVerifyResponse>('POST', '/api/auth/mfa/verify', factor, mfaToken),
+  /** Emails a new login code. Refused for 30 seconds after the last one. */
+  sendLoginCode: (mfaToken: string) => request<EmailSent>('POST', '/api/auth/mfa/email', {}, mfaToken),
   logout: (token: string) => request<{ ok: true }>('POST', '/api/auth/logout', undefined, token),
   /** The signed-in user's full profile. */
   me: (token: string) => request<User & { mfaEnabled: boolean }>('GET', '/api/auth/me', undefined, token),
@@ -164,12 +191,18 @@ export const authApi = {
     request<{ recoveryCodes: string[] }>('POST', '/api/mfa/recovery-codes', { code }, token),
   disableMfa: (token: string, password: string, factor: SecondFactor) =>
     request<{ status: 'ok'; user: ApiUser }>('POST', '/api/mfa/disable', { password, ...factor }, token),
+  /** Clients: emails a code that turns on emailed login codes (enableEmailMfa). */
+  startEmailMfa: (token: string) => request<EmailSent>('POST', '/api/mfa/email/start', {}, token),
+  enableEmailMfa: (token: string, emailCode: string) => request<{ status: 'ok'; user: ApiUser }>('POST', '/api/mfa/email/enable', { emailCode }, token),
+  disableEmailMfa: (token: string, password: string) => request<{ status: 'ok'; user: ApiUser }>('POST', '/api/mfa/email/disable', { password }, token),
 
   /** Signs out the account's other devices. */
   changePassword: (token: string, currentPassword: string, newPassword: string) =>
     request<{ ok: true }>('POST', '/api/auth/password', { currentPassword, newPassword }, token),
-  /** Forgotten password: a reset code from an administrator, or the authenticator (or a recovery code). */
-  resetPassword: (email: string, newPassword: string, proof: SecondFactor | { resetCode: string }) =>
+  /** Forgotten password, step 1: emails a code if the address has an account (the reply is the same either way). */
+  requestPasswordReset: (email: string) => request<{ ok: true; devCode?: string }>('POST', '/api/auth/password-reset/request', { email }),
+  /** Step 2: the emailed code, a reset code from an administrator, or the authenticator (or a recovery code). */
+  resetPassword: (email: string, newPassword: string, proof: LoginFactor | { resetCode: string }) =>
     request<{ ok: true }>('POST', '/api/auth/password-reset', { email, newPassword, ...proof }),
 };
 

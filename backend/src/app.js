@@ -1,10 +1,12 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import QRCode from 'qrcode';
 
 import {
+  EMAIL_CODE_TTL_MS,
+  EMAIL_RESEND_MS,
   ISSUER,
   LOCKOUT_MS,
   MAX_MFA_FAILURES,
@@ -29,6 +31,7 @@ import {
   verifyPassword,
 } from './security.js';
 import { sql } from './db.js';
+import { codeEmail } from './email.js';
 import { ApiError, str } from './http.js';
 import { newProfile, toUser } from './profiles.js';
 import { registerResources } from './resources.js';
@@ -37,6 +40,12 @@ import { generateSecret, otpauthUrl, verifyTotp } from './totp.js';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const minutes = (ms) => Math.max(1, Math.ceil(ms / 60000));
+
+/** "te••••@gmail.com": enough to recognise your own address without showing it to anyone else. */
+export function maskEmail(email) {
+  const [name, domain] = String(email).split('@');
+  return `${name.slice(0, 2)}${'•'.repeat(Math.max(2, Math.min(6, name.length - 2)))}@${domain}`;
+}
 
 /**
  * @param {object} opts
@@ -47,8 +56,10 @@ const minutes = (ms) => Math.max(1, Math.ceil(ms / 60000));
  * @param {number | boolean} [opts.trustProxy] proxies in front of the API (1 on Render), so rate limits see real client IPs
  * @param {'turso' | 'local'} [opts.database] shown by /api/health
  * @param {string} [opts.turso] when on the local database: why Turso isn't used (a short code, no secrets)
+ * @param {ReturnType<typeof import('./email.js').createMailer>} opts.mailer sends login and password reset codes
+ * @param {boolean} [opts.production] when email isn't set up, password reset codes are shown only outside production
  */
-export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false, database = 'local', turso }) {
+export function createApp({ db, keys, mailer, production = false, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false, database = 'local', turso }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -92,8 +103,67 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   const deleteOtherSessions = (userId, tokenHash) =>
     sql("DELETE FROM tokens WHERE user_id = ? AND kind = 'session' AND token_hash != ?", userId, tokenHash);
 
+  /** Two-step verification by email: always for admins and consultants, by choice for clients. */
+  const emailMfaOn = (u) => MFA_REQUIRED_ROLES.has(u.role) || !!u.email_mfa;
+
   function publicUser(u) {
-    return { id: u.id, email: u.email, name: u.name, role: u.role, mfaEnabled: !!u.mfa_enabled, mfaRequired: MFA_REQUIRED_ROLES.has(u.role) };
+    return {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      mfaEnabled: !!u.mfa_enabled, // authenticator app set up
+      emailMfaEnabled: emailMfaOn(u),
+      mfaRequired: MFA_REQUIRED_ROLES.has(u.role),
+    };
+  }
+
+  // ---- Codes sent by email -------------------------------------------------------------------
+
+  /**
+   * Emails the user a new 6-digit code for `purpose` ('login', 'reset' or 'enable'), replacing
+   * any earlier one. Returns where it went and, only when email isn't set up on this server, the
+   * code itself so the app can still be used (never for password resets in production).
+   */
+  async function sendEmailCode(user, purpose) {
+    const t = now();
+    const last = await db.get('SELECT sent_at FROM email_codes WHERE user_id = ? AND purpose = ? AND expires_at > ?', user.id, purpose, t);
+    if (last && t - last.sent_at < EMAIL_RESEND_MS) {
+      const wait = Math.ceil((EMAIL_RESEND_MS - (t - last.sent_at)) / 1000);
+      throw new ApiError(429, 'code_recently_sent', `We just sent a code. You can ask for another in ${wait} seconds.`);
+    }
+    const code = String(randomInt(1_000_000)).padStart(6, '0');
+    await db.run(
+      `INSERT INTO email_codes (user_id, purpose, code_hash, expires_at, sent_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (user_id, purpose) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, sent_at = excluded.sent_at, attempts = 0`,
+      user.id,
+      purpose,
+      hashRecoveryCode(code, keys.recoveryKey),
+      t + EMAIL_CODE_TTL_MS,
+      t,
+    );
+    try {
+      await mailer.send({ to: user.email, name: user.name, ...codeEmail(code, purpose, user.name, minutes(EMAIL_CODE_TTL_MS)) });
+    } catch (err) {
+      console.error(`Couldn't email a ${purpose} code: ${err?.message ?? err}`);
+      await db.run('DELETE FROM email_codes WHERE user_id = ? AND purpose = ?', user.id, purpose);
+      throw new ApiError(502, 'email_failed', 'We couldn’t send the email just now. Please try again in a minute.');
+    }
+    const showCode = !mailer.configured && (purpose !== 'reset' || !production);
+    return { sentTo: maskEmail(user.email), ...(showCode && { devCode: code }) };
+  }
+
+  /** True if `code` is the user's current emailed code for `purpose`. A used code is deleted; a few wrong guesses delete it too. */
+  async function useEmailCode(userId, purpose, code) {
+    const row = await db.get('SELECT code_hash FROM email_codes WHERE user_id = ? AND purpose = ? AND expires_at > ?', userId, purpose, now());
+    if (!row) return false;
+    if (code && row.code_hash === hashRecoveryCode(code, keys.recoveryKey)) {
+      // The hash in the WHERE stops two requests racing to use the same code.
+      return !!(await db.get('DELETE FROM email_codes WHERE user_id = ? AND purpose = ? AND code_hash = ? RETURNING user_id', userId, purpose, row.code_hash));
+    }
+    const tried = await db.get('UPDATE email_codes SET attempts = attempts + 1 WHERE user_id = ? AND purpose = ? RETURNING attempts', userId, purpose);
+    if (tried && tried.attempts >= MAX_MFA_FAILURES) await db.run('DELETE FROM email_codes WHERE user_id = ? AND purpose = ?', userId, purpose);
+    return false;
   }
 
   /** A new token plus the statements that store it, so callers can batch them with other writes. */
@@ -116,15 +186,29 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     return token;
   }
 
-  /** After the password: a session, or a short-lived token for the MFA step. */
+  /**
+   * After the password: a session, or a short-lived token for the second step. Accounts with an
+   * authenticator app use its code (or ask for an email); everyone else is emailed a code now.
+   */
   async function afterPassword(user) {
-    if (user.mfa_enabled) {
-      return { status: 'mfa_required', mfaToken: await issueToken(user.id, 'mfa_challenge'), user: publicUser(user) };
+    if (!user.mfa_enabled && !emailMfaOn(user)) {
+      return { status: 'ok', token: await issueToken(user.id, 'session'), user: publicUser(user) };
     }
-    if (MFA_REQUIRED_ROLES.has(user.role)) {
-      return { status: 'mfa_setup_required', mfaToken: await issueToken(user.id, 'mfa_setup'), user: publicUser(user) };
+    const challenge = {
+      status: 'mfa_required',
+      mfaToken: await issueToken(user.id, 'mfa_challenge'),
+      user: publicUser(user),
+      methods: { authenticator: !!user.mfa_enabled, email: maskEmail(user.email) },
+    };
+    if (!user.mfa_enabled) {
+      try {
+        challenge.email = await sendEmailCode(user, 'login');
+      } catch (err) {
+        // The password was right, so still go to the code screen; it can ask for the email again.
+        challenge.emailError = err instanceof ApiError ? err.message : 'We couldn’t send the email. Ask for a new code.';
+      }
     }
-    return { status: 'ok', token: await issueToken(user.id, 'session'), user: publicUser(user) };
+    return challenge;
   }
 
   /** New recovery codes plus the statements that replace the old ones. */
@@ -140,20 +224,22 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   }
 
   /**
-   * Checks a 6-digit code, or a recovery code when `allowRecovery`. Repeated failures lock MFA
-   * for the account (not just this device) for LOCKOUT_MS.
+   * Checks a 6-digit authenticator code, an emailed login code when `allowEmail`, or a recovery
+   * code when `allowRecovery`. Repeated failures lock MFA for the account (not just this device)
+   * for LOCKOUT_MS.
    */
-  async function checkSecondFactor(user, body, { allowRecovery = true } = {}) {
+  async function checkSecondFactor(user, body, { allowRecovery = true, allowEmail = false } = {}) {
     const t = now();
     if (user.mfa_locked_until > t) {
       throw new ApiError(429, 'mfa_locked', `Too many wrong codes. Try again in ${minutes(user.mfa_locked_until - t)} minutes.`);
     }
     const code = str(body.code, 10).replace(/\s/g, '');
     const recoveryCode = allowRecovery ? str(body.recoveryCode, 40) : '';
+    const emailCode = allowEmail ? str(body.emailCode, 10).replace(/\s/g, '') : '';
     let usedRecoveryCode = false;
     let ok = false;
 
-    if (code) {
+    if (code && user.mfa_secret_enc) {
       const step = verifyTotp(decryptSecret(user.mfa_secret_enc, keys.secretKey), code, { nowMs: t, lastUsedStep: user.mfa_last_step });
       // The step check in SQL stops two requests racing to use the same code.
       ok = step !== null && !!(await db.get('UPDATE users SET mfa_last_step = ? WHERE id = ? AND mfa_last_step < ? RETURNING id', step, user.id, step));
@@ -165,6 +251,8 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
         hashRecoveryCode(recoveryCode, keys.recoveryKey),
       ));
       usedRecoveryCode = ok;
+    } else if (emailCode) {
+      ok = await useEmailCode(user.id, 'login', emailCode);
     }
 
     if (ok) {
@@ -176,7 +264,15 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
       await db.run('UPDATE users SET mfa_failures = 0, mfa_locked_until = ? WHERE id = ?', t + LOCKOUT_MS, user.id);
       throw new ApiError(429, 'mfa_locked', `Too many wrong codes. Try again in ${minutes(LOCKOUT_MS)} minutes.`);
     }
-    throw new ApiError(401, 'invalid_code', recoveryCode ? 'That recovery code is wrong or has already been used.' : 'That code is incorrect or has expired.');
+    throw new ApiError(
+      401,
+      'invalid_code',
+      recoveryCode
+        ? 'That recovery code is wrong or has already been used.'
+        : emailCode
+          ? 'That code is incorrect or has expired. Check the latest email, or ask for a new code.'
+          : 'That code is incorrect or has expired.',
+    );
   }
 
   function newPasswordFrom(body) {
@@ -219,7 +315,9 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   // ---- Routes --------------------------------------------------------------------------------
 
   // `database` says where data is kept ('turso', or 'local' if Turso isn't set up or couldn't be reached).
-  app.get('/api/health', (_req, res) => res.json({ ok: true, database, ...(database === 'local' && turso && { turso }) }));
+  app.get('/api/health', (_req, res) =>
+    res.json({ ok: true, database, ...(database === 'local' && turso && { turso }), email: mailer.configured ? 'brevo' : 'not_configured' }),
+  );
 
   app.post('/api/auth/register', authLimiter, async (req, res) => {
     const role = req.body?.role;
@@ -289,7 +387,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     const { user, tokenHash } = req.auth;
     let result;
     try {
-      result = await checkSecondFactor(user, req.body ?? {});
+      result = await checkSecondFactor(user, req.body ?? {}, { allowEmail: true });
     } catch (err) {
       // Each challenge also gets a limited number of tries, then the password is needed again.
       const row = await db.get('UPDATE tokens SET attempts = attempts + 1 WHERE token_hash = ? RETURNING attempts', tokenHash);
@@ -305,6 +403,11 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
       usedRecoveryCode: result.usedRecoveryCode,
       recoveryCodesRemaining: await countRecovery(user.id),
     });
+  });
+
+  /** Emails a (new) login code during the second step, e.g. when the first didn't arrive. */
+  app.post('/api/auth/mfa/email', mfaLimiter, auth('mfa_challenge'), async (req, res) => {
+    res.json(await sendEmailCode(req.auth.user, 'login'));
   });
 
   /** The signed-in user's full profile. */
@@ -329,21 +432,47 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   });
 
   /**
-   * Forgotten password. Proof is a reset code an administrator made for the account or, when
-   * two-step verification is on, a code from the authenticator app or a recovery code. Every
-   * device is signed out, and logging in again still asks for the authenticator code.
+   * Forgotten password, step 1: emails a 6-digit code. The reply is the same whether or not the
+   * email has an account, so it can't be used to find out who uses SaveMan.
+   */
+  app.post('/api/auth/password-reset/request', authLimiter, async (req, res) => {
+    const email = str(req.body?.email).trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) throw new ApiError(400, 'invalid_email', 'Enter a valid email address.');
+    if (!mailer.configured && production) {
+      throw new ApiError(503, 'email_not_configured', 'Email isn’t set up on the SaveMan server yet. Ask an administrator for a reset code.');
+    }
+    const user = await userByEmail(email);
+    let sent = {};
+    if (user?.status === 'active') {
+      try {
+        sent = await sendEmailCode(user, 'reset');
+      } catch (err) {
+        // "Too soon" would reveal the account exists; the earlier code still works.
+        if (err?.code !== 'code_recently_sent') throw err;
+      }
+    }
+    res.json({ ok: true, ...(sent.devCode && { devCode: sent.devCode }) });
+  });
+
+  /**
+   * Forgotten password, step 2. Proof is the emailed code, a reset code an administrator made
+   * or, with an authenticator app set up, its code or a recovery code. Every device is signed
+   * out, and logging in again still needs the second step.
    */
   app.post('/api/auth/password-reset', authLimiter, async (req, res) => {
     const body = req.body ?? {};
     const password = newPasswordFrom(body);
     const email = str(body.email).trim().toLowerCase();
     const resetCode = str(body.resetCode, 40);
+    const emailCode = str(body.emailCode, 10).replace(/\s/g, '');
     const user = email ? await userByEmail(email) : undefined;
     // One message for every failure, so it doesn't reveal which emails have accounts.
     const wrong = new ApiError(401, 'invalid_reset', 'That email and code don’t match, or the code has expired.');
     if (!user) throw wrong;
 
-    if (resetCode) {
+    if (emailCode) {
+      if (!(await useEmailCode(user.id, 'reset', emailCode))) throw wrong;
+    } else if (resetCode) {
       const reset = await db.get('SELECT * FROM password_resets WHERE user_id = ? AND expires_at > ?', user.id, now());
       if (!reset) throw wrong;
       if (reset.code_hash !== hashRecoveryCode(resetCode, keys.recoveryKey)) {
@@ -361,6 +490,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     await db.batch([
       sql('UPDATE users SET password_hash = ?, login_failures = 0, login_locked_until = 0 WHERE id = ?', hashPassword(password), user.id),
       sql('DELETE FROM password_resets WHERE user_id = ?', user.id),
+      sql('DELETE FROM email_codes WHERE user_id = ?', user.id),
       sql('DELETE FROM tokens WHERE user_id = ?', user.id),
     ]);
     res.json({ ok: true });
@@ -372,7 +502,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     const target = await userById(req.params.id);
     if (!target) throw new ApiError(404, 'not_found', 'User not found.');
     if (target.role === 'admin') {
-      throw new ApiError(403, 'forbidden', 'Administrators reset their password with their authenticator app.');
+      throw new ApiError(403, 'forbidden', 'Administrators reset their password with a code sent to their email.');
     }
     const [code] = generateRecoveryCodes(1);
     const expiresAt = now() + PASSWORD_RESET_TTL_MS;
@@ -390,6 +520,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     const { user } = req.auth;
     res.json({
       enabled: !!user.mfa_enabled,
+      emailEnabled: emailMfaOn(user),
       required: MFA_REQUIRED_ROLES.has(user.role),
       enabledAt: user.mfa_enabled_at,
       recoveryCodesRemaining: user.mfa_enabled ? await countRecovery(user.id) : 0,
@@ -464,12 +595,38 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     res.json({ recoveryCodes: recovery.codes });
   });
 
-  app.post('/api/mfa/disable', mfaLimiter, auth('session'), async (req, res) => {
-    const { user, tokenHash } = req.auth;
+  /** Clients: turn on emailed login codes, step 1. A code is sent to prove the address works. */
+  app.post('/api/mfa/email/start', mfaLimiter, auth('session'), async (req, res) => {
+    const { user } = req.auth;
+    if (emailMfaOn(user)) throw new ApiError(400, 'already_enabled', 'Emailed login codes are already on.');
+    res.json(await sendEmailCode(user, 'enable'));
+  });
+
+  /** Step 2: the emailed code turns it on. */
+  app.post('/api/mfa/email/enable', mfaLimiter, auth('session'), async (req, res) => {
+    const { user } = req.auth;
+    if (!(await useEmailCode(user.id, 'enable', str(req.body?.emailCode, 10).replace(/\s/g, '')))) {
+      throw new ApiError(401, 'invalid_code', 'That code is incorrect or has expired. Check the latest email, or ask for a new code.');
+    }
+    await db.run('UPDATE users SET email_mfa = 1 WHERE id = ?', user.id);
+    res.json({ status: 'ok', user: publicUser(await userById(user.id)) });
+  });
+
+  /** Clients only: turn emailed login codes off. Needs the password. */
+  app.post('/api/mfa/email/disable', mfaLimiter, auth('session'), async (req, res) => {
+    const { user } = req.auth;
     if (MFA_REQUIRED_ROLES.has(user.role)) {
       throw new ApiError(403, 'mfa_required_for_role', 'Two-step verification is required for your account and can’t be turned off.');
     }
-    if (!user.mfa_enabled) throw new ApiError(400, 'mfa_not_enabled', 'Two-step verification is already off.');
+    requirePassword(user, req.body?.password);
+    await db.run('UPDATE users SET email_mfa = 0 WHERE id = ?', user.id);
+    res.json({ status: 'ok', user: publicUser(await userById(user.id)) });
+  });
+
+  /** Removes the authenticator app. Admins and consultants keep getting codes by email. */
+  app.post('/api/mfa/disable', mfaLimiter, auth('session'), async (req, res) => {
+    const { user, tokenHash } = req.auth;
+    if (!user.mfa_enabled) throw new ApiError(400, 'mfa_not_enabled', 'The authenticator app is already off.');
     requirePassword(user, req.body?.password);
     await checkSecondFactor(user, req.body ?? {});
     await db.batch([

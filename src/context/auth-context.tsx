@@ -5,7 +5,10 @@ import {
   authApi,
   errorMessage,
   type ApiUser,
+  type EmailSent,
+  type LoginFactor,
   type LoginResponse,
+  type MfaChallenge,
   type MfaEnableResponse,
   type MfaSetupData,
   type MfaStatus,
@@ -44,18 +47,15 @@ export interface OwnProfileChanges {
   avatarUri?: string | null;
 }
 
-/** Where to go after a password: signed in, or one of the MFA screens. */
-export type AuthResult = { error: string } | { next: 'done' | 'mfa-verify' | 'mfa-setup' };
+/** Where to go after a password: signed in, or the screen for the emailed (or authenticator) code. */
+export type AuthResult = { error: string } | { next: 'done' | 'mfa-verify' };
 
-/** Password accepted, MFA still to do: enter a code ('verify') or enrol first ('setup'). */
-export interface PendingMfa {
-  kind: 'verify' | 'setup';
-  mfaToken: string;
-  user: ApiUser;
-}
+/** Password accepted, a code still to enter. */
+export type PendingMfa = Omit<MfaChallenge, 'status'>;
 
 interface Session {
   token: string;
+  /** Two-step verification on (email or authenticator). */
   mfaEnabled: boolean;
   mfaRequired: boolean;
 }
@@ -78,7 +78,9 @@ interface AuthContextValue {
   pendingMfa: PendingMfa | null;
   /** MFA state of the signed-in account. */
   security: { mfaEnabled: boolean; mfaRequired: boolean } | null;
-  verifyMfa: (factor: SecondFactor) => Promise<MfaVerifyResponse>;
+  verifyMfa: (factor: LoginFactor) => Promise<MfaVerifyResponse>;
+  /** Emails a new login code for the pending login. */
+  sendLoginCode: () => Promise<EmailSent>;
   /** Opens the session from verifyMfa / confirmMfaSetup. Separate so screens can show a notice first. */
   completeSignIn: (result: { token?: string; user: ApiUser }) => void;
   cancelMfa: () => void;
@@ -88,6 +90,10 @@ interface AuthContextValue {
   getMfaStatus: () => Promise<MfaStatus>;
   regenerateRecoveryCodes: (code: string) => Promise<string[]>;
   disableMfa: (password: string, factor: SecondFactor) => Promise<void>;
+  /** Clients: emailed login codes. Turning on sends a code to confirm the address. */
+  startEmailMfa: () => Promise<EmailSent>;
+  enableEmailMfa: (emailCode: string) => Promise<void>;
+  disableEmailMfa: (password: string) => Promise<void>;
 
   // These resolve to an error message for the screen to show, or null on success.
 
@@ -107,6 +113,9 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const noSession = () => new ApiError('Please log in again.', 'unauthorized', 401);
+
+/** Two-step verification is on: by email, an authenticator app, or both. */
+const twoStepOn = (u: ApiUser) => u.mfaEnabled || u.emailMfaEnabled;
 
 // Passwords, sessions, MFA, profiles and admin actions go through the SaveMan API (backend/), which
 // checks each caller's role. Accounts are cached on this device (SQLite) and the session is kept in
@@ -133,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!saved) return;
     authApi
       .mfaStatus(saved.token)
-      .then((status) => setSession((s) => (s?.token === saved.token ? { ...s, mfaEnabled: status.enabled } : s)))
+      .then((status) => setSession((s) => (s?.token === saved.token ? { ...s, mfaEnabled: status.enabled || status.emailEnabled } : s)))
       .catch((err) => {
         if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
           setSession((s) => (s?.token === saved.token ? null : s));
@@ -166,13 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [token, replaceUser],
   );
 
-  /** Session token, or the enrolment token while a required-MFA user sets up their authenticator. */
-  function setupToken() {
-    const t = pendingMfa?.kind === 'setup' ? pendingMfa.mfaToken : session?.token;
-    if (!t) throw noSession();
-    return t;
-  }
-
   function sessionToken() {
     if (!session) throw noSession();
     return session.token;
@@ -183,9 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completeSignIn(res);
       return { next: 'done' };
     }
-    const kind = res.status === 'mfa_required' ? 'verify' : 'setup';
-    setPendingMfa({ kind, mfaToken: res.mfaToken, user: res.user });
-    return { next: kind === 'verify' ? 'mfa-verify' : 'mfa-setup' };
+    const { status: _status, ...pending } = res;
+    setPendingMfa(pending);
+    return { next: 'mfa-verify' };
   }
 
   async function signIn(email: string, password: string): Promise<AuthResult> {
@@ -215,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function completeSignIn({ token: newToken, user: apiUser }: { token?: string; user: ApiUser }) {
     if (!newToken) return;
-    setSession({ token: newToken, mfaEnabled: apiUser.mfaEnabled, mfaRequired: apiUser.mfaRequired });
+    setSession({ token: newToken, mfaEnabled: twoStepOn(apiUser), mfaRequired: apiUser.mfaRequired });
     setPendingMfa(null);
     // The root layout switches to the user's section once their profile is here.
     if (users.some((u) => u.id === apiUser.id)) setUserId(apiUser.id);
@@ -233,20 +235,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPendingMfa(null);
   }
 
-  function verifyMfa(factor: SecondFactor) {
-    if (pendingMfa?.kind !== 'verify') throw noSession();
+  function verifyMfa(factor: LoginFactor) {
+    if (!pendingMfa) throw noSession();
     return authApi.verifyMfa(pendingMfa.mfaToken, factor);
   }
 
+  async function sendLoginCode() {
+    if (!pendingMfa) throw noSession();
+    const sent = await authApi.sendLoginCode(pendingMfa.mfaToken);
+    setPendingMfa((p) => p && { ...p, email: sent, emailError: undefined });
+    return sent;
+  }
+
   function startMfaSetup(reauth?: { password: string } & SecondFactor) {
-    return authApi.mfaSetup(setupToken(), reauth);
+    return authApi.mfaSetup(sessionToken(), reauth);
   }
 
   async function confirmMfaSetup(code: string) {
-    const res = await authApi.mfaEnable(setupToken(), code);
-    // Enrolling during login: the session opens once the recovery codes have been saved (completeSignIn).
-    if (session) setSession({ ...session, mfaEnabled: true });
+    const res = await authApi.mfaEnable(sessionToken(), code);
+    setSession((s) => (s ? { ...s, mfaEnabled: true } : s));
     return res;
+  }
+
+  function startEmailMfa() {
+    return authApi.startEmailMfa(sessionToken());
+  }
+
+  async function enableEmailMfa(emailCode: string) {
+    const res = await authApi.enableEmailMfa(sessionToken(), emailCode);
+    setSession((s) => (s ? { ...s, mfaEnabled: twoStepOn(res.user) } : s));
+  }
+
+  async function disableEmailMfa(password: string) {
+    const res = await authApi.disableEmailMfa(sessionToken(), password);
+    setSession((s) => (s ? { ...s, mfaEnabled: twoStepOn(res.user) } : s));
   }
 
   function getMfaStatus() {
@@ -259,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function disableMfa(password: string, factor: SecondFactor) {
     const res = await authApi.disableMfa(sessionToken(), password, factor);
-    setSession((s) => (s ? { ...s, mfaEnabled: res.user.mfaEnabled } : s));
+    setSession((s) => (s ? { ...s, mfaEnabled: twoStepOn(res.user) } : s));
   }
 
   const signOut = useCallback(() => {
@@ -342,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pendingMfa,
         security: session && { mfaEnabled: session.mfaEnabled, mfaRequired: session.mfaRequired },
         verifyMfa,
+        sendLoginCode,
         completeSignIn,
         cancelMfa,
         startMfaSetup,
@@ -349,6 +372,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getMfaStatus,
         regenerateRecoveryCodes,
         disableMfa,
+        startEmailMfa,
+        enableEmailMfa,
+        disableEmailMfa,
         updateConsultant,
         updateOwnProfile,
         saveService,

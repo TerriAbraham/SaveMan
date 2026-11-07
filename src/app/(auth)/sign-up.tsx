@@ -77,9 +77,9 @@ export default function SignUpScreen() {
       categoryId: isConsultant ? form.categoryId : undefined,
     });
     setBusy(false);
-    // Clients go straight to their section; consultants set up MFA first.
+    // Clients go straight to their section; consultants enter the code emailed to them first.
     if ('error' in result) setFormError(result.error);
-    else if (result.next === 'mfa-setup') router.push('/mfa-setup');
+    else if (result.next === 'mfa-verify') router.push('/mfa-verify');
   }
 
   return (
@@ -133,7 +133,7 @@ export default function SignUpScreen() {
           <Icon name="verified" size={20} color={colors.forest} />
           <Text className="flex-1 text-body text-fg">
             New consultant profiles are reviewed by the SaveMan team. Clients can book you once you are verified. Consultant
-            accounts are protected with two-step verification, so have Google Authenticator or Microsoft Authenticator ready.
+            accounts are protected with two-step verification: each login needs a 6-digit code we email you, so use an address you can open.
           </Text>
         </View>
       )}

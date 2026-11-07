@@ -2,8 +2,9 @@ import { networkInterfaces } from 'node:os';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { createApp } from './app.js';
-import { DB_PATH, HOST, PORT, TRUST_PROXY, TURSO_AUTH_TOKEN, TURSO_DATABASE_URL, deriveKeys } from './config.js';
+import { BREVO_API_KEY, DB_PATH, EMAIL_FROM, HOST, IS_PRODUCTION, PORT, TRUST_PROXY, TURSO_AUTH_TOKEN, TURSO_DATABASE_URL, deriveKeys } from './config.js';
 import { openDb, seedIfEmpty } from './db.js';
+import { createMailer } from './email.js';
 
 const TURSO_ATTEMPTS = 3;
 
@@ -75,7 +76,10 @@ async function openDatabase() {
 }
 
 const { db, database, turso } = await openDatabase();
-const app = createApp({ db, keys: deriveKeys(), trustProxy: TRUST_PROXY, database, turso });
+const mailer = createMailer({ apiKey: BREVO_API_KEY, from: EMAIL_FROM });
+if (mailer.configured) console.log(`Sending email from ${EMAIL_FROM} through Brevo`);
+else console.warn('Email is not set up (BREVO_API_KEY and EMAIL_FROM), so login codes are logged here and shown in the app instead of emailed.');
+const app = createApp({ db, keys: deriveKeys(), mailer, production: IS_PRODUCTION, trustProxy: TRUST_PROXY, database, turso });
 
 const server = app.listen(PORT, HOST, () => {
   const lan = Object.values(networkInterfaces())

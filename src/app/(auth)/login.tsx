@@ -44,7 +44,7 @@ export default function LoginScreen() {
     if ('error' in result) setError(result.error);
     else if (result.next !== 'done') {
       setPassword('');
-      router.push(result.next === 'mfa-verify' ? '/mfa-verify' : '/mfa-setup');
+      router.push('/mfa-verify');
     }
   }
 
@@ -117,7 +117,7 @@ export default function LoginScreen() {
             </Pressable>
           );
         })}
-        <Text className="text-caption text-fg-muted">Consultant and admin accounts ask for an authenticator code.</Text>
+        <Text className="text-caption text-fg-muted">Consultant and admin accounts ask for a 6-digit code sent to their email.</Text>
       </View>
     </AuthScreen>
   );

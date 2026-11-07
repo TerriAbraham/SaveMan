@@ -13,11 +13,21 @@ import { totpAt } from '../src/totp.js';
 let ctx;
 const tokens = {};
 
+/** Keeps the emails the API sends, so tests can read the codes in them. */
+const mailer = {
+  configured: true,
+  sent: [],
+  async send(message) {
+    this.sent.push(message);
+  },
+};
+const emailedCode = (to) => mailer.sent.findLast((m) => m.to === to).text.match(/\b\d{6}\b/)[0];
+
 async function startServer() {
   const db = await openDb({ path: ':memory:' });
   await seedIfEmpty(db);
   // Real clock: the dummy bookings are dated relative to today.
-  const app = createApp({ db, keys: deriveKeys(randomBytes(32)), limits: { auth: 1000, mfa: 1000 } });
+  const app = createApp({ db, keys: deriveKeys(randomBytes(32)), mailer, limits: { auth: 1000, mfa: 1000 } });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
@@ -33,13 +43,15 @@ async function startServer() {
   return { db, server, call };
 }
 
-/** A session for a demo account; consultants and admins enrol in MFA first. */
+/** A session for a demo account; consultants and admins enter the code emailed to them. */
 async function sessionFor(email, password) {
-  const res = await ctx.call('POST', '/api/auth/login', { email, password });
+  return finishLogin(await ctx.call('POST', '/api/auth/login', { email, password }), email);
+}
+
+/** The session from a login or sign-up reply, entering the emailed code when one is needed. */
+async function finishLogin(res, email) {
   if (res.body.status === 'ok') return res.body.token;
-  const setup = await ctx.call('POST', '/api/mfa/setup', {}, res.body.mfaToken);
-  const enabled = await ctx.call('POST', '/api/mfa/enable', { code: totpAt(setup.body.secret, Date.now()) }, res.body.mfaToken);
-  return enabled.body.token;
+  return (await ctx.call('POST', '/api/auth/mfa/verify', { emailCode: emailedCode(email) }, res.body.mfaToken)).body.token;
 }
 
 /** A free slot with this consultant at least a week ahead, as the booking screen would offer. */
@@ -306,8 +318,9 @@ describe('passwords', () => {
     const reg = await ctx.call('POST', '/api/auth/register', {
       role: 'consultant', name: 'Mfa Tester', email: 'mfa-reset@test.pg', password: 'first-pass', phone: '+675 7000 2222', city: 'Lae', title: 'Accountant', categoryId: 'cat-finance',
     });
-    const setup = await ctx.call('POST', '/api/mfa/setup', {}, reg.body.mfaToken);
-    await ctx.call('POST', '/api/mfa/enable', { code: totpAt(setup.body.secret, Date.now()) }, reg.body.mfaToken);
+    const session = await finishLogin(reg, 'mfa-reset@test.pg');
+    const setup = await ctx.call('POST', '/api/mfa/setup', {}, session);
+    await ctx.call('POST', '/api/mfa/enable', { code: totpAt(setup.body.secret, Date.now()) }, session);
     const reset = (body) => ctx.call('POST', '/api/auth/password-reset', { email: 'mfa-reset@test.pg', newPassword: 'new-pass', ...body });
     assert.equal((await reset({ code: '000000' })).status, 401);
     // The next 30-second step, as the code used to enrol can't be used again.

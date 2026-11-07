@@ -7,15 +7,19 @@ import { authApi, errorMessage, type MfaSetupData, type MfaStatus, type SecondFa
 import { Icon } from '@/components/icon';
 import { AuthenticatorSetup } from '@/components/mfa/authenticator-setup';
 import { CodeField } from '@/components/mfa/code-field';
+import { DevCodeNotice } from '@/components/mfa/dev-code-notice';
 import { RecoveryCodes } from '@/components/mfa/recovery-codes';
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { useCooldown } from '@/hooks/use-cooldown';
 
 type Mode =
   | { name: 'view' }
+  | { name: 'emailOn'; sentTo: string; devCode?: string } // enter the code that turns on emailed login codes
+  | { name: 'emailOff' }
   | { name: 'setup'; setup: MfaSetupData }
   | { name: 'move' } // confirm identity before moving MFA to a new phone
   | { name: 'regenerate' }
@@ -24,12 +28,23 @@ type Mode =
   | { name: 'codes'; codes: string[] };
 
 /**
- * Password and two-step verification: change password, turn MFA on (clients), move it to a new
- * phone, new recovery codes, turn it off (clients).
+ * Password and two-step verification: change password; emailed login codes (always on for admins
+ * and consultants, a choice for clients); and an optional authenticator app with recovery codes.
  */
 export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   const insets = useSafeAreaInsets();
-  const { user, token, getMfaStatus, startMfaSetup, confirmMfaSetup, regenerateRecoveryCodes, disableMfa } = useAuth();
+  const {
+    user,
+    token,
+    getMfaStatus,
+    startMfaSetup,
+    confirmMfaSetup,
+    regenerateRecoveryCodes,
+    disableMfa,
+    startEmailMfa,
+    enableEmailMfa,
+    disableEmailMfa,
+  } = useAuth();
   const [status, setStatus] = useState<MfaStatus | null>(null);
   const [mode, setMode] = useState<Mode>({ name: 'view' });
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +86,7 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   }
 
   const turnOn = () => run(async () => setMode({ name: 'setup', setup: await startMfaSetup() }));
+  const sendEnableCode = () => run(async () => setMode({ name: 'emailOn', ...(await startEmailMfa()) }));
 
   async function confirmSetup(code: string) {
     const res = await confirmMfaSetup(code);
@@ -79,7 +95,40 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   }
 
   let body;
-  if (mode.name === 'setup') {
+  if (mode.name === 'emailOn') {
+    body = (
+      <ConfirmEmailCode
+        sentTo={mode.sentTo}
+        devCode={mode.devCode}
+        busy={busy}
+        onResend={sendEnableCode}
+        onSubmit={(code) =>
+          run(async () => {
+            await enableEmailMfa(code);
+            back();
+            refresh();
+            setNotice('Emailed login codes are on. Next time you log in, we’ll email you a code.');
+          })
+        }
+      />
+    );
+  } else if (mode.name === 'emailOff') {
+    body = (
+      <ConfirmPassword
+        title="Turn off emailed login codes"
+        description="Logging in will need your password only."
+        submitLabel="Turn off"
+        busy={busy}
+        onSubmit={(password) =>
+          run(async () => {
+            await disableEmailMfa(password);
+            back();
+            refresh();
+          })
+        }
+      />
+    );
+  } else if (mode.name === 'setup') {
     body = <AuthenticatorSetup setup={mode.setup} onConfirm={confirmSetup} />;
   } else if (mode.name === 'codes') {
     body = (
@@ -118,12 +167,16 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   } else if (mode.name === 'disable') {
     body = (
       <ConfirmIdentity
-        title="Turn off two-step verification"
-        description="Your account will be protected by your password only. Your recovery codes will be deleted."
+        title="Remove the authenticator app"
+        description={
+          status?.emailEnabled
+            ? 'Logging in will use the code we email you. Your recovery codes will be deleted.'
+            : 'Your account will be protected by your password only. Your recovery codes will be deleted.'
+        }
         askPassword
         allowRecovery
         danger
-        submitLabel="Turn off"
+        submitLabel="Remove"
         busy={busy}
         onSubmit={(password, factor) =>
           run(async () => {
@@ -151,42 +204,63 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   } else if (!status) {
     body = error ? null : <ActivityIndicator color={colors.red} className="py-8" />;
   } else {
+    const on = status.emailEnabled || status.enabled;
+    const how =
+      status.emailEnabled && status.enabled
+        ? `a 6-digit code emailed to ${user.email}, or one from your authenticator app`
+        : status.emailEnabled
+          ? `a 6-digit code emailed to ${user.email}`
+          : 'a 6-digit code from your authenticator app';
     body = (
       <>
         <View className="gap-3 rounded-card border border-line/70 bg-surface p-4 shadow-card">
           <View className="flex-row items-center gap-3">
-            <View className={`h-10 w-10 items-center justify-center rounded-full ${status.enabled ? 'bg-forest-tint' : 'bg-sand'}`}>
-              <Icon name="shield" size={20} color={status.enabled ? colors.forest : colors.textMuted} />
+            <View className={`h-10 w-10 items-center justify-center rounded-full ${on ? 'bg-forest-tint' : 'bg-sand'}`}>
+              <Icon name="shield" size={20} color={on ? colors.forest : colors.textMuted} />
             </View>
             <View className="flex-1">
               <Text className="text-heading text-fg">Two-step verification</Text>
-              <Text className={`text-label ${status.enabled ? 'text-forest' : 'text-fg-muted'}`}>{status.enabled ? 'On' : 'Off'}</Text>
+              <Text className={`text-label ${on ? 'text-forest' : 'text-fg-muted'}`}>{on ? 'On' : 'Off'}</Text>
             </View>
           </View>
           <Text className="text-body text-fg-muted">
             {status.required
-              ? 'Required for your account. Each login needs your password and a 6-digit code from your authenticator app.'
-              : status.enabled
-                ? 'Each login needs your password and a 6-digit code from your authenticator app.'
-                : 'Add a 6-digit code from Google Authenticator or Microsoft Authenticator to each login, so a stolen password isn’t enough.'}
+              ? `Required for your account. Each login needs your password and ${how}.`
+              : on
+                ? `Each login needs your password and ${how}.`
+                : 'Get a 6-digit code by email each time you log in, so a stolen password isn’t enough.'}
           </Text>
-          {!status.enabled && <Button title="Turn on" onPress={turnOn} loading={busy} />}
+          {!status.emailEnabled && <Button title="Email me a code at each login" onPress={sendEnableCode} loading={busy} />}
+          {status.emailEnabled && !status.required && (
+            <Row icon="mail" title="Turn off emailed codes" detail="Your password is needed" danger onPress={() => setMode({ name: 'emailOff' })} />
+          )}
         </View>
 
-        {status.enabled && (
-          <View className="gap-1 rounded-card border border-line/70 bg-surface p-2 shadow-card">
-            <Row
-              icon="key"
-              title="Recovery codes"
-              detail={`${status.recoveryCodesRemaining} of 10 left${status.recoveryCodesRemaining <= 3 ? ', make new ones soon' : ''}`}
-              onPress={() => setMode({ name: 'regenerate' })}
-            />
-            <Row icon="phone" title="Move to a new phone" detail="Set up a different authenticator" onPress={() => setMode({ name: 'move' })} />
-            {!status.required && (
-              <Row icon="lock" title="Turn off" detail="Password and code needed" danger onPress={() => setMode({ name: 'disable' })} />
-            )}
+        <View className="gap-3 rounded-card border border-line/70 bg-surface p-4 shadow-card">
+          <View className="gap-1">
+            <Text className="text-heading text-fg">Authenticator app</Text>
+            <Text className={`text-label ${status.enabled ? 'text-forest' : 'text-fg-muted'}`}>{status.enabled ? 'Set up' : 'Optional'}</Text>
           </View>
-        )}
+          {status.enabled ? (
+            <View className="-mx-2 gap-1">
+              <Row
+                icon="key"
+                title="Recovery codes"
+                detail={`${status.recoveryCodesRemaining} of 10 left${status.recoveryCodesRemaining <= 3 ? ', make new ones soon' : ''}`}
+                onPress={() => setMode({ name: 'regenerate' })}
+              />
+              <Row icon="phone" title="Move to a new phone" detail="Set up a different authenticator" onPress={() => setMode({ name: 'move' })} />
+              <Row icon="lock" title="Remove" detail="Password and code needed" danger onPress={() => setMode({ name: 'disable' })} />
+            </View>
+          ) : (
+            <>
+              <Text className="text-body text-fg-muted">
+                Use Google Authenticator or Microsoft Authenticator for login codes that work without waiting for an email.
+              </Text>
+              <Button title="Set up an authenticator app" variant="outline" onPress={turnOn} loading={busy} />
+            </>
+          )}
+        </View>
 
         <View className="gap-1 rounded-card border border-line/70 bg-surface p-2 shadow-card">
           <Row icon="lock" title="Change password" detail="Your current password is needed" onPress={() => setMode({ name: 'password' })} />
@@ -211,7 +285,116 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   );
 }
 
-function Row({ icon, title, detail, danger, onPress }: { icon: 'key' | 'phone' | 'lock'; title: string; detail: string; danger?: boolean; onPress: () => void }) {
+/** The emailed code that turns on emailed login codes. */
+function ConfirmEmailCode({
+  sentTo,
+  devCode,
+  busy,
+  onResend,
+  onSubmit,
+}: {
+  sentTo: string;
+  devCode?: string;
+  busy: boolean;
+  onResend: () => void;
+  onSubmit: (code: string) => void;
+}) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const resend = useCooldown(30);
+
+  function submit(value = code) {
+    if (value.length !== 6) return setError('Enter the 6-digit code from the email.');
+    setError(null);
+    onSubmit(value);
+  }
+
+  return (
+    <View className="gap-4 rounded-card border border-line/70 bg-surface p-4 shadow-card">
+      <View className="gap-1">
+        <Text className="text-heading text-fg">Check your email</Text>
+        <Text className="text-body text-fg-muted">
+          We emailed a 6-digit code to {sentTo}. Enter it to confirm the address and turn on emailed login codes.
+        </Text>
+      </View>
+      {devCode && <DevCodeNotice code={devCode} />}
+      <CodeField value={code} onChangeText={setCode} onComplete={submit} error={error} autoFocus />
+      <Button title="Turn on" onPress={() => submit()} loading={busy} />
+      <Pressable
+        onPress={() => {
+          setCode('');
+          resend.start(30);
+          onResend();
+        }}
+        disabled={busy || resend.seconds > 0}
+        hitSlop={8}
+        accessibilityRole="button"
+        className="self-start">
+        <Text className={`text-label ${busy || resend.seconds > 0 ? 'text-fg-muted' : 'text-red'}`}>
+          {resend.seconds > 0 ? `Send a new code in ${resend.seconds}s` : 'Send a new code'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function ConfirmPassword({
+  title,
+  description,
+  submitLabel,
+  busy,
+  onSubmit,
+}: {
+  title: string;
+  description: string;
+  submitLabel: string;
+  busy: boolean;
+  onSubmit: (password: string) => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    if (!password) return setError('Enter your password.');
+    setError(null);
+    onSubmit(password);
+  }
+
+  return (
+    <View className="gap-4 rounded-card border border-line/70 bg-surface p-4 shadow-card">
+      <View className="gap-1">
+        <Text className="text-heading text-fg">{title}</Text>
+        <Text className="text-body text-fg-muted">{description}</Text>
+      </View>
+      <TextField
+        label="Password"
+        icon="lock"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoComplete="current-password"
+        onSubmitEditing={submit}
+        returnKeyType="go"
+      />
+      {error && <Text className="text-caption text-red-dark">{error}</Text>}
+      <Button title={submitLabel} variant="secondary" onPress={submit} loading={busy} />
+    </View>
+  );
+}
+
+function Row({
+  icon,
+  title,
+  detail,
+  danger,
+  onPress,
+}: {
+  icon: 'key' | 'phone' | 'lock' | 'mail';
+  title: string;
+  detail: string;
+  danger?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" className="flex-row items-center gap-3 rounded-xl p-3 active:bg-sand">
       <Icon name={icon} size={20} color={danger ? colors.redDark : colors.textMuted} />

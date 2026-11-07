@@ -25,7 +25,8 @@ const SCHEMA = `
     mfa_last_step         INTEGER NOT NULL DEFAULT -1, -- last accepted TOTP step, blocks replays
     mfa_failures          INTEGER NOT NULL DEFAULT 0,
     mfa_locked_until      INTEGER NOT NULL DEFAULT 0,
-    mfa_enabled_at        INTEGER
+    mfa_enabled_at        INTEGER,
+    email_mfa             INTEGER NOT NULL DEFAULT 0 -- a client chose emailed login codes
   );
 
   CREATE TABLE IF NOT EXISTS recovery_codes (
@@ -46,6 +47,18 @@ const SCHEMA = `
     created_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS tokens_user ON tokens(user_id);
+
+  -- 6-digit codes sent by email: for logging in, resetting a password, or turning on emailed codes.
+  -- One live code per user and purpose, keyed hash only.
+  CREATE TABLE IF NOT EXISTS email_codes (
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose    TEXT NOT NULL CHECK (purpose IN ('login', 'reset', 'enable')),
+    code_hash  TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    sent_at    INTEGER NOT NULL,
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, purpose)
+  );
 
   -- One-time codes an administrator gives someone who forgot their password. Keyed hash only.
   CREATE TABLE IF NOT EXISTS password_resets (
@@ -152,6 +165,9 @@ export async function openDb({ path, url, authToken }) {
     .map((s) => s.trim())
     .filter(Boolean);
   await client.batch(schema, 'write');
+  // Columns added after the first release, for databases made before them.
+  const columns = (await client.execute("SELECT name FROM pragma_table_info('users')")).rows.map((r) => r.name);
+  if (!columns.includes('email_mfa')) await client.execute('ALTER TABLE users ADD COLUMN email_mfa INTEGER NOT NULL DEFAULT 0');
 
   const run = (text, args) => client.execute({ sql: text, args });
   return {

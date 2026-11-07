@@ -28,13 +28,12 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 - **Messages and calls:** reply to clients, or call them from a booking.
 
 ### Security (all roles)
-- **Two-step verification (TOTP MFA)** with Google Authenticator or Microsoft Authenticator: 6-digit codes that change every 30 seconds. No SMS.
-- **Required for admins and consultants:** the first login asks them to set up an authenticator before they can get in. **Optional for clients:** turn it on or off under *Profile → Security*.
-- **Setup:** QR code (scan from another screen), an *Open in authenticator* link and a copyable setup key (for setting up on the same phone).
-- **10 one-time recovery codes** for a lost phone. Make new ones, or move MFA to a new phone, under *Security*.
-- **Turning it off** (clients only) needs the password and a current code.
+- **Two-step verification by email:** after the password, a 6-digit code is emailed to the account (works once, for 10 minutes; *Send a new code* after 30 seconds). No SMS.
+- **Required for admins and consultants. Optional for clients:** *Profile → Security → Email me a code at each login* (confirmed with an emailed code); turning it off needs the password.
+- **Authenticator app (optional extra):** Google or Microsoft Authenticator codes instead of waiting for an email. Set up under *Security* with a QR code, an *Open in authenticator* link or a copyable key, and get **10 one-time recovery codes** for a lost phone. Accounts with an app can still ask for an emailed code at login.
 - **Change password** under *Security* (needs the current one; other devices are signed out).
-- **Forgot password?** on the login screen: prove it's you with a **reset code** from an admin (one use, 30 minutes; *Admin → Users → a user → Create reset code*), or with your **authenticator code / a recovery code** if two-step verification is on. Every device is signed out, and logging in still asks for the authenticator code.
+- **Forgot password?** on the login screen: enter your email, get a **6-digit code by email**, and choose a new password. *Other ways to reset*: a **reset code** from an admin (one use, 30 minutes; *Admin → Users → a user → Create reset code*), or an **authenticator / recovery code**. Every device is signed out, and logging in still needs the second step.
+- **Email delivery** uses [Brevo](https://www.brevo.com) (free, 300 emails a day). Until it's set up (see [Sending email](#sending-email-brevo)), the server shows login codes in the app instead of emailing them.
 
 ### Admin
 - **Overview:** number of users, consultants, bookings and reviews; bookings by status.
@@ -92,6 +91,17 @@ To let anyone use the app, not just phones on your Wi-Fi, host the API on **Rend
 
 The free service **sleeps after 15 minutes** without requests. The next request wakes it in about a minute, and the app shows *"Waking up the SaveMan server"* meanwhile. Before a demo, open the health link a minute early. Never change `MFA_MASTER_KEY` once set: existing authenticator setups would stop working.
 
+### Sending email (Brevo)
+
+Login and password reset codes are sent through Brevo's HTTP API. It's free, needs no website domain, and works on Render's free plan (which blocks ordinary SMTP email).
+
+1. Sign up at [brevo.com](https://www.brevo.com). Under **Senders, domains & IPs → Senders**, add the address emails should come from (e.g. your Gmail) and click the link Brevo emails you to verify it.
+2. Under **SMTP & API → API keys**, create a key (it starts with `xkeysib-`).
+3. Set `BREVO_API_KEY` and `EMAIL_FROM` (the verified address): in Render under **Environment** (then redeploy), or in `backend/.env` on your PC.
+4. `/api/health` then shows `"email":"brevo"`.
+
+Without them (`"email":"not_configured"`), codes are written to the server log and **login** codes are shown in the app, so you can still log in. Password reset codes are shown in the app only on your PC; the hosted server refuses email resets until email is set up (an admin's reset code still works). The demo accounts use made-up addresses (`@saveman.pg`, `@example.pg`) that can't receive email, so to see real emails, sign up with your own address.
+
 ## REST API
 
 The API in `backend/` is the app's mock server: real HTTP routes, filled with the dummy data from `src/data/` on first start. Requests and replies are JSON. Send the session token as `Authorization: Bearer <token>`; routes marked *public* also work without one. Errors come back as `{ "error": { "code", "message" } }` with a matching status: `400` invalid input, `401` not logged in, `403` your role isn't allowed, `404` not found or not yours, `409` conflict (e.g. a slot was just taken).
@@ -102,12 +112,15 @@ The API in `backend/` is the app's mock server: real HTTP routes, filled with th
 |---|---|---|---|
 | POST | `/api/auth/register` | public | Create a client or consultant account and profile |
 | POST | `/api/auth/login` | public | Email + password → session, or an MFA step |
-| POST | `/api/auth/mfa/verify` | MFA step | 6-digit or recovery code → session |
+| POST | `/api/auth/mfa/verify` | MFA step | Emailed `emailCode`, authenticator `code` or `recoveryCode` → session |
+| POST | `/api/auth/mfa/email` | MFA step | Email a new login code (30 seconds apart) |
 | GET | `/api/auth/me` | signed in | Your full profile |
 | POST | `/api/auth/logout` | signed in | End the session |
 | POST | `/api/auth/password` | signed in | Change password (current one needed); signs out other devices |
-| POST | `/api/auth/password-reset` | public | Forgotten password: email + new password + an admin's `resetCode`, or an authenticator `code` / `recoveryCode` |
-| GET/POST | `/api/mfa/status`, `/setup`, `/enable`, `/recovery-codes`, `/disable` | signed in | Two-step verification settings |
+| POST | `/api/auth/password-reset/request` | public | Forgotten password: email a 6-digit code (same reply whether or not the account exists) |
+| POST | `/api/auth/password-reset` | public | Email + new password + the emailed `emailCode`, an admin's `resetCode`, or an authenticator `code` / `recoveryCode` |
+| GET/POST | `/api/mfa/status`, `/email/start`, `/email/enable`, `/email/disable` | signed in | Two-step verification status; emailed login codes on/off (clients) |
+| POST | `/api/mfa/setup`, `/enable`, `/recovery-codes`, `/disable` | signed in | Optional authenticator app |
 
 **Data (CRUD)** (`backend/src/resources.js`)
 
@@ -179,7 +192,7 @@ Other accounts for testing specific cases:
 
 You can also create new client or consultant accounts from **Create an account**. New consultants start as *waiting for verification*.
 
-**Admin and consultant accounts need an authenticator app** the first time they log in (see [Testing two-step verification](#testing-two-step-verification-in-expo-go)). Clients log in with just a password unless they turn MFA on.
+**Admin and consultant accounts need a 6-digit code** after the password, sent by email (see [Testing two-step verification](#testing-two-step-verification-in-expo-go)). Clients log in with just a password unless they turn it on.
 
 Booking dates in the dummy data are relative to today, so there are always upcoming requests and recent history to try out, whatever day you run the app.
 
@@ -193,36 +206,34 @@ Booking dates in the dummy data are relative to today, so there are always upcom
 
 ## Testing two-step verification in Expo Go
 
-Install **Google Authenticator** or **Microsoft Authenticator** on your phone. Start the API (`cd backend && npm start`) and the app (`npx expo start`), and open the app in Expo Go.
+Start the API (`cd backend && npm start`) and the app (`npx expo start`), and open the app in Expo Go. Without Brevo set up, the code also appears in a yellow box in the app and in the API's console. With Brevo, it arrives by email only. Use an account with your real address to receive it.
 
-**1. Required setup (admin or consultant)**
-1. Log in as `admin@saveman.pg` / `admin123`. Instead of the dashboard you get *Set up two-step verification*.
-2. Add the account to your authenticator. On the same phone, tap **Open in authenticator**, or tap **Copy key**, then in the authenticator choose *Enter a setup key*, paste it and pick *Time based*. If the authenticator is on another device, scan the QR code.
-3. Type the 6-digit code the authenticator shows. It submits on the 6th digit.
-4. You see 10 recovery codes. **Copy** or **Share** them somewhere safe, then tap *I’ve saved my codes, continue*. You’re on the admin dashboard.
+**1. Emailed login code (admin or consultant)**
+1. Log in as `admin@saveman.pg` / `admin123`. You get *Two-step verification* and a code is emailed.
+2. Type the 6-digit code. It submits on the 6th digit. Wrong or expired codes are refused, and each code works once.
+3. Didn't arrive? **Send a new code** (after 30 seconds). The new code replaces the old one.
 
-**2. Login with a code**
-1. Log out (Overview → Log out) and log in as the admin again.
-2. Enter the current code from the authenticator. Wrong or expired codes are refused, and the same code can’t be used twice.
+**2. Forgot password**
+1. On the login screen tap **Forgot password?**, enter your email and tap **Email me a code**.
+2. Enter the emailed code and a new password twice. You're signed out everywhere; log in with the new password (plus the login code for admins and consultants).
 
-**3. Recovery code (lost phone)**
-1. Log out, log in again, tap **Lost your phone? Use a recovery code**, and enter one of the saved codes (case and dash don’t matter).
-2. You’re told how many are left. Using the same code again fails.
-3. Under *Overview → Security and two-step verification* you can **Make new recovery codes** (needs an authenticator code) or **Move to a new phone** (needs password + code). Admins and consultants have no *Turn off*.
+**3. Emailed codes for a client**
+1. Sign up as a client with your own email (no code asked at login). Go to *Profile → Security → Email me a code at each login* and enter the code from the email.
+2. Log out and in again: now a code is emailed. *Turn off emailed codes* asks for your password.
 
-**4. Optional MFA (client)**
-1. Log in as `client@saveman.pg` / `client123` (no code asked). Go to *Profile → Security → Turn on* and follow the same setup.
-2. Log out and in again: now a code is asked.
-3. *Profile → Security → Turn off* asks for your password and a code. After that, login is password-only again.
+**4. Authenticator app (optional)**
+1. Install Google Authenticator or Microsoft Authenticator. In *Security → Set up an authenticator app*, tap **Open in authenticator** (same phone), **Copy key**, or scan the QR code, then type its code.
+2. Save the 10 recovery codes. From now on login asks for the app's code, with **Email me a code instead** and **Lost your phone? Use a recovery code** as options.
+3. *Security* has **Make new recovery codes**, **Move to a new phone** and **Remove** (password + code).
 
 **5. Lockouts and rate limits**
-- 5 wrong codes in a row lock MFA on that account for 15 minutes (even with the right code, and even from a new login).
+- 5 wrong codes in a row lock two-step verification on that account for 15 minutes (even with the right code, and even from a new login).
 - 5 wrong passwords lock the login for 15 minutes.
-- Each IP address gets 20 login/sign-up attempts and 30 MFA requests per 15 minutes.
+- Each IP address gets 20 login/sign-up/reset attempts and 30 code requests per 15 minutes.
 
-To repeat the setup from the start, stop the API, run `npm run reset` in `backend/` and start it again. Delete the old SaveMan entry from the authenticator too.
+To start from scratch, stop the API, run `npm run reset` in `backend/` and start it again.
 
-**Automated tests** cover the whole flow (enrolment, login, replay, expiry, recovery codes, lockouts, rate limits, disabling) and the RFC 6238 test vectors:
+**Automated tests** cover the whole flow (emailed codes, resends, expiry, password resets, authenticator setup, replay, recovery codes, lockouts, rate limits) and the RFC 6238 test vectors:
 
 ```bash
 cd backend
@@ -235,8 +246,9 @@ npm test
 - **Secrets** are encrypted with AES-256-GCM before they’re stored. Set `MFA_MASTER_KEY` (64 hex or 44 base64 characters) in production; in development a key is generated in `backend/data/master.key`.
 - **Recovery codes** (10, about 49 bits each) are stored only as keyed hashes (HMAC-SHA256), and each works once.
 - **Passwords** are hashed with scrypt. Unknown emails take as long to reject as wrong passwords, with the same error message.
-- **Tokens:** after the password you get a short-lived, single-use MFA token (5 minutes to enter a code, 15 to finish setup), not a session. Sessions last 12 hours, and only token hashes are stored. Changing or turning off MFA signs out your other devices.
-- **No hard-coded or SMS codes.** The server never sends a code anywhere; only the authenticator app can make them.
+- **Emailed codes** are 6 random digits, stored only as keyed hashes, valid once for 10 minutes, and deleted after 5 wrong tries. A new one can be sent every 30 seconds and replaces the last. Password reset requests give the same reply for unknown emails, so they can't be used to find out who has an account.
+- **Tokens:** after the password you get a short-lived, single-use token (10 minutes to enter a code), not a session. Sessions last 12 hours, and only token hashes are stored. Changing your authenticator or password signs out your other devices.
+- **No SMS or hard-coded codes.**
 
 ---
 

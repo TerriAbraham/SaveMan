@@ -34,3 +34,9 @@ services:
         sync: false
       - key: TURSO_AUTH_TOKEN
         sync: false
+      # Email for login codes and password resets (Brevo, free). An API key from Brevo → SMTP & API,
+      # and a sender address verified in Brevo. Until both are set, login codes are shown in the app.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

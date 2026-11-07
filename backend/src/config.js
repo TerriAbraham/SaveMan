@@ -34,6 +34,15 @@ export const TURSO_DATABASE_URL = tursoUrl(process.env.TURSO_DATABASE_URL);
 export const TURSO_AUTH_TOKEN = cleanSetting(process.env.TURSO_AUTH_TOKEN, 'TURSO_AUTH_TOKEN').replace(/^Bearer/i, '') || undefined;
 const KEY_PATH = join(DATA_DIR, 'master.key');
 
+/**
+ * Email (login and password reset codes) goes through Brevo's HTTP API: free, no domain needed,
+ * and it works on Render's free plan, which blocks SMTP. EMAIL_FROM must be a sender address
+ * verified in Brevo. Without these, codes are written to the server log and shown in the app.
+ */
+export const BREVO_API_KEY = cleanSetting(process.env.BREVO_API_KEY, 'BREVO_API_KEY') || undefined;
+export const EMAIL_FROM = cleanSetting(process.env.EMAIL_FROM, 'EMAIL_FROM') || undefined;
+export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 export const PORT = Number(process.env.PORT ?? 4000);
 /** 0.0.0.0 = every network adapter, so a phone on the same Wi-Fi can connect. */
 export const HOST = process.env.HOST ?? '0.0.0.0';
@@ -43,14 +52,16 @@ export const TRUST_PROXY = Number(process.env.TRUST_PROXY ?? 0);
 /** Shown in authenticator apps next to the account. No spaces, so it reads cleanly in every app. */
 export const ISSUER = 'SaveMan';
 
-/** Roles that must use MFA. Clients can turn it on themselves. */
+/** Roles that must use two-step verification (a code by email, or an authenticator app). Clients can turn it on themselves. */
 export const MFA_REQUIRED_ROLES = new Set(['admin', 'consultant']);
 
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-export const MFA_CHALLENGE_TTL_MS = 5 * 60 * 1000; // after the password, to enter the code
+export const MFA_CHALLENGE_TTL_MS = 10 * 60 * 1000; // after the password, to enter the code (emails can take a minute)
 export const MFA_SETUP_TTL_MS = 15 * 60 * 1000; // after the password, to enrol (required roles)
 export const PENDING_SECRET_TTL_MS = 10 * 60 * 1000; // a scanned-but-unconfirmed secret
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // a reset code from an administrator
+export const EMAIL_CODE_TTL_MS = 10 * 60 * 1000; // a 6-digit code sent by email
+export const EMAIL_RESEND_MS = 30 * 1000; // wait this long before sending another code
 
 export const MIN_PASSWORD_LENGTH = 6;
 
