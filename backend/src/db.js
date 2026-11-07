@@ -127,8 +127,8 @@ export async function openDb({ path, url, authToken }) {
   }
   // Local only: Turso runs statements over HTTP, so a per-connection pragma wouldn't stick.
   if (!url) await client.execute('PRAGMA foreign_keys = ON');
-  // One statement per batch entry, comments removed: Turso rejects the schema sent as a single
-  // multi-statement script (HTTP 400), while a plain batch works on every server.
+  // One statement per batch entry (comments removed), so the tables are created all-or-nothing
+  // the same way on a local file and on Turso.
   const schema = SCHEMA.replace(/--[^\n]*/g, '')
     .split(';')
     .map((s) => s.trim())
