@@ -17,6 +17,7 @@ import { seedUsers } from '@/data/users';
 import type { AccountStatus, Consultant, User, VerificationStatus } from '@/data/types';
 import { useSavedState } from '@/hooks/use-saved-state';
 import { loadSession, saveSession } from '@/storage/local-store';
+import { shrinkPhoto } from '@/utils/photos';
 export interface SignUpInput {
   role: 'client' | 'consultant';
   name: string;
@@ -39,7 +40,7 @@ export interface OwnProfileChanges {
   name: string;
   phone: string;
   city?: string;
-  /** New profile photo, or null to remove it. Leave out to keep the current one. */
+  /** A newly picked photo (a file on this device, uploaded on save), or null to remove it. Leave out to keep the current one. */
   avatarUri?: string | null;
 }
 
@@ -286,11 +287,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return saveUser((t) => dataApi.users.updateProfile(t, user.id, changes));
   }
 
-  function updateOwnProfile({ name, phone, city, avatarUri }: OwnProfileChanges) {
-    if (!user) return Promise.resolve('Please log in again.');
-    if (name.trim().length < 2) return Promise.resolve('Enter your full name.');
-    if (phone.replace(/\D/g, '').length < 7) return Promise.resolve('Enter a valid phone number.');
-    const changes = { name: name.trim(), phone: phone.trim(), ...(user.role === 'client' && city && { city }), ...(avatarUri !== undefined && { avatarUri }) };
+  async function updateOwnProfile({ name, phone, city, avatarUri }: OwnProfileChanges) {
+    if (!user) return 'Please log in again.';
+    if (name.trim().length < 2) return 'Enter your full name.';
+    if (phone.replace(/\D/g, '').length < 7) return 'Enter a valid phone number.';
+    // A new photo is shrunk and uploaded first, so everyone sees it, not just this phone.
+    if (avatarUri && avatarUri !== user.avatarUri) {
+      let image;
+      try {
+        image = await shrinkPhoto(avatarUri);
+      } catch {
+        return 'That photo couldn’t be read. Try a different one.';
+      }
+      const error = await saveUser((t) => dataApi.users.uploadPhoto(t, user.id, image));
+      if (error) return error;
+    }
+    const changes = { name: name.trim(), phone: phone.trim(), ...(user.role === 'client' && city && { city }), ...(avatarUri === null && { avatarUri: null }) };
     return saveUser((t) => dataApi.users.updateProfile(t, user.id, changes));
   }
 

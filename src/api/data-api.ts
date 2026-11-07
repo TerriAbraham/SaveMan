@@ -40,6 +40,12 @@ export const dataApi = {
       request<User>('PATCH', `/api/users/${encodeURIComponent(id)}`, changes, token),
     /** A consultant's booked times (no client details), for offering free slots. */
     busy: (token: string, id: string) => request<BusyTime[]>('GET', `/api/users/${encodeURIComponent(id)}/busy`, undefined, token),
+    /** Your own profile photo, as a base64 JPEG (see shrinkPhoto). */
+    uploadPhoto: (token: string, id: string, image: string) =>
+      request<User>('POST', `/api/users/${encodeURIComponent(id)}/photo`, { image }, token),
+    /** Admin only: a one-time code for someone who forgot their password. */
+    createResetCode: (token: string, id: string) =>
+      request<{ code: string; expiresAt: number }>('POST', `/api/users/${encodeURIComponent(id)}/reset-code`, undefined, token),
     /** Admin only. */
     setStatus: (token: string, id: string, status: User['status']) =>
       request<User>('PATCH', `/api/users/${encodeURIComponent(id)}`, { status }, token),

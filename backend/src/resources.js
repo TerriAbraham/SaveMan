@@ -21,6 +21,7 @@ const firstError = (errors) => Object.values(errors).find(Boolean);
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^\d{2}:\d{2}$/;
 const MODES = ['in-person', 'video', 'phone'];
+const MAX_PHOTO_BYTES = 300 * 1024;
 
 const toBooking = (r) => ({
   id: r.id,
@@ -163,10 +164,10 @@ export function registerResources(app, { db, auth, optionalAuth, now }) {
       if (phone.replace(/\D/g, '').length < 7) throw invalid('Enter a valid phone number.');
       updated.phone = phone;
     }
+    // New photos are uploaded with POST /api/users/:id/photo; here one can only be removed.
     if ('avatarUri' in body) {
       if (body.avatarUri === null) delete updated.avatarUri;
-      else if (str(body.avatarUri, 2000)) updated.avatarUri = body.avatarUri;
-      else throw invalid('That photo can’t be used.');
+      else if (body.avatarUri !== target.avatarUri) throw invalid('Choose the photo again to upload it.');
     }
     if ('city' in body) {
       if (target.role !== 'client') throw invalid('Consultants set their town with their location.');
@@ -211,8 +212,51 @@ export function registerResources(app, { db, auth, optionalAuth, now }) {
         updated.availability = normalizeAvailability(week);
       }
     }
-    await db.batch([saveProfile(updated), sql('UPDATE users SET name = ? WHERE id = ?', updated.name, target.id)]);
+    await db.batch([
+      saveProfile(updated),
+      sql('UPDATE users SET name = ? WHERE id = ?', updated.name, target.id),
+      ...(target.avatarUri && !updated.avatarUri ? [sql('DELETE FROM photos WHERE user_id = ?', target.id)] : []),
+    ]);
     res.json(updated);
+  });
+
+  // ---- Profile photos ------------------------------------------------------------------------
+
+  /** JPEG or PNG, from the first bytes of the file. */
+  const photoType = (data) =>
+    data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff
+      ? 'image/jpeg'
+      : data.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+        ? 'image/png'
+        : null;
+
+  /** Your profile photo, as base64 (the app shrinks it first). Replaces the old one. */
+  app.post('/api/users/:id/photo', signedIn, async (req, res) => {
+    const target = await loadUser(req.params.id);
+    if (!target) throw notFound('User');
+    if (target.id !== req.auth.user.id) throw forbidden('You can only change your own photo.');
+    const image = str(req.body?.image, 600_000);
+    if (!image) throw invalid('That photo is too large. Choose a smaller one.');
+    const data = Buffer.from(image, 'base64');
+    const mime = photoType(data);
+    if (!mime) throw invalid('Choose a JPEG or PNG photo.');
+    if (data.length > MAX_PHOTO_BYTES) throw invalid('That photo is too large. Choose a smaller one.');
+
+    const id = randomUUID();
+    const updated = { ...target, avatarUri: `/api/photos/${id}` };
+    await db.batch([
+      sql('DELETE FROM photos WHERE user_id = ?', target.id),
+      sql('INSERT INTO photos (id, user_id, mime, data, created_at) VALUES (?, ?, ?, ?, ?)', id, target.id, mime, data, now()),
+      saveProfile(updated),
+    ]);
+    res.status(201).json(updated);
+  });
+
+  app.get('/api/photos/:id', async (req, res) => {
+    const photo = await db.get('SELECT mime, data FROM photos WHERE id = ?', str(req.params.id, 60));
+    if (!photo) throw notFound('Photo');
+    // Each photo has its own address and never changes, so phones can keep it.
+    res.set({ 'Content-Type': photo.mime, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(Buffer.from(photo.data));
   });
 
   // ---- Services (a consultant's own price list) ------------------------------------------------

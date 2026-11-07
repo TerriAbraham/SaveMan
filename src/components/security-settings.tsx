@@ -2,7 +2,7 @@ import type { Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { errorMessage, type MfaSetupData, type MfaStatus, type SecondFactor } from '@/api/auth-api';
+import { authApi, errorMessage, type MfaSetupData, type MfaStatus, type SecondFactor } from '@/api/auth-api';
 import { Icon } from '@/components/icon';
 import { AuthenticatorSetup } from '@/components/mfa/authenticator-setup';
 import { CodeField } from '@/components/mfa/code-field';
@@ -19,14 +19,19 @@ type Mode =
   | { name: 'move' } // confirm identity before moving MFA to a new phone
   | { name: 'regenerate' }
   | { name: 'disable' }
+  | { name: 'password' }
   | { name: 'codes'; codes: string[] };
 
-/** Two-step verification settings: turn on (clients), move to a new phone, new recovery codes, turn off (clients). */
+/**
+ * Password and two-step verification: change password, turn MFA on (clients), move it to a new
+ * phone, new recovery codes, turn it off (clients).
+ */
 export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
-  const { user, getMfaStatus, startMfaSetup, confirmMfaSetup, regenerateRecoveryCodes, disableMfa } = useAuth();
+  const { user, token, getMfaStatus, startMfaSetup, confirmMfaSetup, regenerateRecoveryCodes, disableMfa } = useAuth();
   const [status, setStatus] = useState<MfaStatus | null>(null);
   const [mode, setMode] = useState<Mode>({ name: 'view' });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -53,6 +58,7 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await action();
     } catch (err) {
@@ -126,6 +132,20 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
         }
       />
     );
+  } else if (mode.name === 'password') {
+    body = (
+      <ChangePassword
+        busy={busy}
+        onSubmit={(current, next) =>
+          run(async () => {
+            if (!token) throw new Error();
+            await authApi.changePassword(token, current, next);
+            back();
+            setNotice('Password changed. You’ve been signed out on your other devices.');
+          })
+        }
+      />
+    );
   } else if (!status) {
     body = error ? null : <ActivityIndicator color={colors.red} className="py-8" />;
   } else {
@@ -165,6 +185,10 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
             )}
           </View>
         )}
+
+        <View className="gap-1 rounded-card border border-line/70 bg-surface p-2 shadow-card">
+          <Row icon="lock" title="Change password" detail="Your current password is needed" onPress={() => setMode({ name: 'password' })} />
+        </View>
       </>
     );
   }
@@ -175,6 +199,7 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        {notice && <Text className="overflow-hidden rounded-lg bg-forest-tint p-3 text-label text-forest">{notice}</Text>}
         {body}
         {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
         {mode.name !== 'view' && mode.name !== 'codes' && <Button title="Cancel" variant="outline" onPress={back} />}
@@ -193,6 +218,53 @@ function Row({ icon, title, detail, danger, onPress }: { icon: 'key' | 'phone' |
       </View>
       <Icon name="chevronRight" size={16} color={colors.textMuted} />
     </Pressable>
+  );
+}
+
+function ChangePassword({ busy, onSubmit }: { busy: boolean; onSubmit: (current: string, next: string) => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    if (!current) return setError('Enter your current password.');
+    if (next.length < 6) return setError('Use at least 6 characters for your new password.');
+    if (next !== confirm) return setError('The two new passwords don’t match.');
+    if (next === current) return setError('Choose a password different from your current one.');
+    setError(null);
+    onSubmit(current, next);
+  }
+
+  return (
+    <View className="gap-4 rounded-card border border-line/70 bg-surface p-4 shadow-card">
+      <View className="gap-1">
+        <Text className="text-heading text-fg">Change password</Text>
+        <Text className="text-body text-fg-muted">You’ll stay logged in here. Your other devices will be signed out.</Text>
+      </View>
+      <TextField label="Current password" icon="lock" value={current} onChangeText={setCurrent} secureTextEntry autoComplete="current-password" />
+      <TextField
+        label="New password"
+        icon="lock"
+        value={next}
+        onChangeText={setNext}
+        placeholder="At least 6 characters"
+        secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
+      />
+      <TextField
+        label="Confirm new password"
+        icon="lock"
+        value={confirm}
+        onChangeText={setConfirm}
+        secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
+      />
+      {error && <Text className="text-caption text-red-dark">{error}</Text>}
+      <Button title="Change password" onPress={submit} loading={busy} />
+    </View>
   );
 }
 

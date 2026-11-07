@@ -18,7 +18,7 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 - **My bookings:** upcoming and past sessions, booking details, cancel an upcoming booking.
 - **Reviews:** rate a session (1–5 stars + comment) once it has been completed.
 - **Messages and calls:** chat with consultants (with unread badges), or tap Call on a profile or booking to open the phone dialer.
-- **Profile:** edit profile photo (choose from photos or take one), name, phone and town.
+- **Profile:** edit profile photo (choose from photos or take one; it's shrunk and uploaded so everyone sees it), name, phone and town.
 
 ### Consultants
 - **Dashboard:** new requests (accept / decline), sessions ready to mark completed, upcoming sessions, history, earnings and rating.
@@ -33,6 +33,8 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 - **Setup:** QR code (scan from another screen), an *Open in authenticator* link and a copyable setup key (for setting up on the same phone).
 - **10 one-time recovery codes** for a lost phone. Make new ones, or move MFA to a new phone, under *Security*.
 - **Turning it off** (clients only) needs the password and a current code.
+- **Change password** under *Security* (needs the current one; other devices are signed out).
+- **Forgot password?** on the login screen: prove it's you with a **reset code** from an admin (one use, 30 minutes; *Admin → Users → a user → Create reset code*), or with your **authenticator code / a recovery code** if two-step verification is on. Every device is signed out, and logging in still asks for the authenticator code.
 
 ### Admin
 - **Overview:** number of users, consultants, bookings and reviews; bookings by status.
@@ -103,6 +105,8 @@ The API in `backend/` is the app's mock server: real HTTP routes, filled with th
 | POST | `/api/auth/mfa/verify` | MFA step | 6-digit or recovery code → session |
 | GET | `/api/auth/me` | signed in | Your full profile |
 | POST | `/api/auth/logout` | signed in | End the session |
+| POST | `/api/auth/password` | signed in | Change password (current one needed); signs out other devices |
+| POST | `/api/auth/password-reset` | public | Forgotten password: email + new password + an admin's `resetCode`, or an authenticator `code` / `recoveryCode` |
 | GET/POST | `/api/mfa/status`, `/setup`, `/enable`, `/recovery-codes`, `/disable` | signed in | Two-step verification settings |
 
 **Data (CRUD)** (`backend/src/resources.js`)
@@ -112,6 +116,9 @@ The API in `backend/` is the app's mock server: real HTTP routes, filled with th
 | GET | `/api/users`, `/api/users/:id` | public | Consultants and reviewers; signed in: also the people you deal with; admin: everyone |
 | PATCH | `/api/users/:id` | owner / admin | Your own profile; an admin sets `status` or `verification` |
 | GET | `/api/users/:id/busy` | signed in | A consultant's booked times (no client details) |
+| POST | `/api/users/:id/photo` | owner | Upload your profile photo (base64 JPEG/PNG, max 300 KB); replaces the old one |
+| GET | `/api/photos/:id` | public | A profile photo (each upload gets a new random address) |
+| POST | `/api/users/:id/reset-code` | admin | One-time password reset code for a client or consultant (30 minutes) |
 | GET | `/api/services?consultantId=` | public | A consultant's services |
 | POST, PATCH, DELETE | `/api/services`, `/api/services/:id` | consultant | Manage your own services |
 | GET | `/api/categories` | public | Service categories |
@@ -287,10 +294,11 @@ A Google Maps API key is only needed for a standalone **Android** build made wit
 
 - **Offline is read-only.** The app reopens logged in (token in `expo-secure-store`) and shows the last data it loaded (SQLite via `expo-sqlite`; browser storage on web). Booking, messaging, reviews and profile changes need the server and show a message when offline; they aren't queued.
 - **Updates every 30 seconds.** New bookings and messages from other phones appear on the next reload (every 30 s, or when the app comes back to the foreground), not instantly.
-- **Profile photos stay on the phone that picked them.** Only the photo's local address is saved, so other phones show initials.
+- **Profile photos are stored in the database** (shrunk to 400 px, usually under 50 KB), which suits a small app; a big one would use file storage such as S3.
+- **Password reset has no email.** Sending email needs a paid or sign-up service, so a reset code comes from an admin (or the account's authenticator).
 - To start over with fresh dummy data: stop the API, run `npm run reset` in `backend/`, start it again, and delete the app's data on the phone (or bump `DATA_VERSION` in `src/storage/local-store.ts`).
 - **Demo passwords** are in `src/data/users.ts` so the API can seed the same accounts; the API stores them hashed.
 - **Sessions last 12 hours.** When the phone is online after that, the app logs out and asks for the password again.
 - **On your PC the API uses plain HTTP** over Wi-Fi. Hosted on Render it gets HTTPS. A real release also needs a secret `MFA_MASTER_KEY`, and a shared store (such as Redis) for rate limits if it runs on more than one server.
-- No payments, notifications, password reset or photo uploads.
+- No payments or notifications.
 - Designed for light mode only.

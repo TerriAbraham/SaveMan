@@ -12,6 +12,8 @@ import {
   MFA_CHALLENGE_TTL_MS,
   MFA_REQUIRED_ROLES,
   MFA_SETUP_TTL_MS,
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_RESET_TTL_MS,
   PENDING_SECRET_TTL_MS,
   SESSION_TTL_MS,
 } from './config.js';
@@ -50,7 +52,9 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
-  app.use(express.json({ limit: '100kb' })); // a consultant profile with services and qualifications
+  const json = express.json({ limit: '100kb' }); // a consultant profile with services and qualifications
+  const photoJson = express.json({ limit: '600kb' }); // a profile photo, base64
+  app.use((req, res, next) => (/^\/api\/users\/[^/]+\/photo$/.test(req.path) ? photoJson : json)(req, res, next));
 
   app.use((req, res, next) => {
     res.set({
@@ -175,6 +179,12 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     throw new ApiError(401, 'invalid_code', recoveryCode ? 'That recovery code is wrong or has already been used.' : 'That code is incorrect or has expired.');
   }
 
+  function newPasswordFrom(body) {
+    const password = str(body?.newPassword);
+    if (password.length < MIN_PASSWORD_LENGTH) throw new ApiError(400, 'weak_password', `Use at least ${MIN_PASSWORD_LENGTH} characters.`);
+    return password;
+  }
+
   function requirePassword(user, password) {
     if (!verifyPassword(str(password), user.password_hash)) throw new ApiError(401, 'invalid_password', 'Your password is incorrect.');
   }
@@ -220,7 +230,7 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
     if (role !== 'client' && role !== 'consultant') throw new ApiError(400, 'invalid_role', 'Choose client or consultant.');
     if (name.length < 2) throw new ApiError(400, 'invalid_name', 'Enter your full name.');
     if (!EMAIL_PATTERN.test(email)) throw new ApiError(400, 'invalid_email', 'Enter a valid email address.');
-    if (password.length < 6) throw new ApiError(400, 'weak_password', 'Use at least 6 characters.');
+    if (password.length < MIN_PASSWORD_LENGTH) throw new ApiError(400, 'weak_password', `Use at least ${MIN_PASSWORD_LENGTH} characters.`);
     const profileInput = {
       phone: str(req.body?.phone, 30).trim(),
       city: str(req.body?.city, 60),
@@ -307,6 +317,73 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
   app.post('/api/auth/logout', auth('session', 'mfa_challenge', 'mfa_setup'), async (req, res) => {
     await deleteToken(req.auth.tokenHash);
     res.json({ ok: true });
+  });
+
+  /** Change your password while signed in. Other devices are signed out. */
+  app.post('/api/auth/password', authLimiter, auth('session'), async (req, res) => {
+    const { user, tokenHash } = req.auth;
+    requirePassword(user, req.body?.currentPassword);
+    const password = newPasswordFrom(req.body);
+    await db.batch([sql('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(password), user.id), deleteOtherSessions(user.id, tokenHash)]);
+    res.json({ ok: true });
+  });
+
+  /**
+   * Forgotten password. Proof is a reset code an administrator made for the account or, when
+   * two-step verification is on, a code from the authenticator app or a recovery code. Every
+   * device is signed out, and logging in again still asks for the authenticator code.
+   */
+  app.post('/api/auth/password-reset', authLimiter, async (req, res) => {
+    const body = req.body ?? {};
+    const password = newPasswordFrom(body);
+    const email = str(body.email).trim().toLowerCase();
+    const resetCode = str(body.resetCode, 40);
+    const user = email ? await userByEmail(email) : undefined;
+    // One message for every failure, so it doesn't reveal which emails have accounts.
+    const wrong = new ApiError(401, 'invalid_reset', 'That email and code don’t match, or the code has expired.');
+    if (!user) throw wrong;
+
+    if (resetCode) {
+      const reset = await db.get('SELECT * FROM password_resets WHERE user_id = ? AND expires_at > ?', user.id, now());
+      if (!reset) throw wrong;
+      if (reset.code_hash !== hashRecoveryCode(resetCode, keys.recoveryKey)) {
+        // A few guesses, then the code is gone and the administrator has to make a new one.
+        const { attempts } = await db.get('UPDATE password_resets SET attempts = attempts + 1 WHERE user_id = ? RETURNING attempts', user.id);
+        if (attempts >= MAX_MFA_FAILURES) await db.run('DELETE FROM password_resets WHERE user_id = ?', user.id);
+        throw wrong;
+      }
+    } else if (user.mfa_enabled) {
+      await checkSecondFactor(user, body);
+    } else {
+      throw wrong;
+    }
+
+    await db.batch([
+      sql('UPDATE users SET password_hash = ?, login_failures = 0, login_locked_until = 0 WHERE id = ?', hashPassword(password), user.id),
+      sql('DELETE FROM password_resets WHERE user_id = ?', user.id),
+      sql('DELETE FROM tokens WHERE user_id = ?', user.id),
+    ]);
+    res.json({ ok: true });
+  });
+
+  /** Admin: a one-time password reset code for someone who forgot theirs. Valid for 30 minutes. */
+  app.post('/api/users/:id/reset-code', auth('session'), async (req, res) => {
+    if (req.auth.user.role !== 'admin') throw new ApiError(403, 'forbidden', 'You don’t have permission to do this.');
+    const target = await userById(req.params.id);
+    if (!target) throw new ApiError(404, 'not_found', 'User not found.');
+    if (target.role === 'admin') {
+      throw new ApiError(403, 'forbidden', 'Administrators reset their password with their authenticator app.');
+    }
+    const [code] = generateRecoveryCodes(1);
+    const expiresAt = now() + PASSWORD_RESET_TTL_MS;
+    await db.run(
+      `INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0`,
+      target.id,
+      hashRecoveryCode(code, keys.recoveryKey),
+      expiresAt,
+    );
+    res.status(201).json({ code, expiresAt });
   });
 
   app.get('/api/mfa/status', auth('session'), async (req, res) => {

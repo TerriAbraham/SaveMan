@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { SmallButton } from '@/components/ui/small-button';
 import { colors } from '@/constants/theme';
 
-// Square crop, and small enough to keep in memory with the rest of the dummy data.
+// Square crop. It's shrunk further before upload (shrinkPhoto).
 const options: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
   allowsEditing: true,

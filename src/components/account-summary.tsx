@@ -63,7 +63,7 @@ export function AccountSummary({ children }: { children?: ReactNode }) {
         <Icon name="shield" size={20} color={security?.mfaEnabled ? colors.forest : colors.textMuted} />
         <View className="flex-1">
           <Text className="text-heading text-fg">Security</Text>
-          <Text className="text-caption text-fg-muted">Two-step verification {security?.mfaEnabled ? 'on' : 'off'}</Text>
+          <Text className="text-caption text-fg-muted">Password · two-step verification {security?.mfaEnabled ? 'on' : 'off'}</Text>
         </View>
         <Icon name="chevronRight" size={16} color={colors.textMuted} />
       </Pressable>

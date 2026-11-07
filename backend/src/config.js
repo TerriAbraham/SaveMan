@@ -50,6 +50,9 @@ export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 export const MFA_CHALLENGE_TTL_MS = 5 * 60 * 1000; // after the password, to enter the code
 export const MFA_SETUP_TTL_MS = 15 * 60 * 1000; // after the password, to enrol (required roles)
 export const PENDING_SECRET_TTL_MS = 10 * 60 * 1000; // a scanned-but-unconfirmed secret
+export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // a reset code from an administrator
+
+export const MIN_PASSWORD_LENGTH = 6;
 
 export const MAX_PASSWORD_FAILURES = 5;
 export const MAX_MFA_FAILURES = 5;

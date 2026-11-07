@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Text, View } from 'react-native';
 
+import { API_URL } from '@/api/auth-api';
 import { initials } from '@/utils/format';
 
 const sizes = {
@@ -13,10 +14,12 @@ const sizes = {
 /** Profile photo with a gold ring, or initials on ink when there's no photo. */
 export function Avatar({ name, uri, size = 'md' }: { name: string; uri?: string; size?: keyof typeof sizes }) {
   const s = sizes[size];
+  // Uploaded photos are stored as an address on the SaveMan server; a just-picked one is a local file.
+  const source = uri?.startsWith('/api/') ? `${API_URL}${uri}` : uri;
   return (
     <View className={`items-center justify-center overflow-hidden rounded-full border-gold bg-ink ${s.box}`}>
-      {uri ? (
-        <Image source={{ uri }} className="h-full w-full" contentFit="cover" accessibilityLabel={`Photo of ${name}`} />
+      {source ? (
+        <Image source={{ uri: source }} className="h-full w-full" contentFit="cover" accessibilityLabel={`Photo of ${name}`} />
       ) : (
         <Text className={`font-extrabold text-on-dark ${s.text}`}>{initials(name)}</Text>
       )}

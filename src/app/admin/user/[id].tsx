@@ -1,7 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { errorMessage } from '@/api/auth-api';
+import { dataApi } from '@/api/data-api';
 import { Avatar } from '@/components/avatar';
 import { BookingStatusPill } from '@/components/booking-status';
 import { Icon, type IconName } from '@/components/icon';
@@ -105,6 +107,8 @@ export default function AdminUserScreen() {
           )}
         </Card>
 
+        <ResetCodeCard user={user} />
+
         <Card title={`Bookings (${theirs.length})`}>
           {theirs.length === 0 ? (
             <Text className="text-body text-fg-muted">No bookings yet.</Text>
@@ -126,6 +130,47 @@ export default function AdminUserScreen() {
         </Card>
       </ScrollView>
     </View>
+  );
+}
+
+/** A one-time code for someone who forgot their password, to give them by phone or in person. */
+function ResetCodeCard({ user }: { user: Client | Consultant }) {
+  const { token } = useAuth();
+  const [reset, setReset] = useState<{ code: string; expiresAt: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    if (!token || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setReset(await dataApi.users.createResetCode(token, user.id));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const until = reset && new Date(reset.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return (
+    <Card title="Password">
+      <Text className="text-body text-fg-muted">
+        Forgot their password? Make a reset code and give it to {user.name} by phone or in person, after checking it’s really them. They
+        enter it on the login screen under “Forgot password?”.
+      </Text>
+      {reset && (
+        <View className="items-center gap-1 rounded-xl bg-sand p-4">
+          <Text selectable className="font-mono text-[26px] font-bold tracking-[3px] text-fg">
+            {reset.code}
+          </Text>
+          <Text className="text-caption text-fg-muted">Works once, until {until}. Making a new code cancels this one.</Text>
+        </View>
+      )}
+      {error && <Text className="text-caption text-red-dark">{error}</Text>}
+      <Button title={reset ? 'Make a new code' : 'Create reset code'} variant="outline" onPress={create} loading={busy} />
+    </Card>
   );
 }
 

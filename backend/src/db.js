@@ -47,6 +47,14 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS tokens_user ON tokens(user_id);
 
+  -- One-time codes an administrator gives someone who forgot their password. Keyed hash only.
+  CREATE TABLE IF NOT EXISTS password_resets (
+    user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    code_hash  TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts   INTEGER NOT NULL DEFAULT 0
+  );
+
   -- App data, served by the REST routes in resources.js. Shapes match src/data/types.ts.
 
   -- Everything about a user that isn't an account field: phone, city, and a consultant's title,
@@ -105,6 +113,16 @@ const SCHEMA = `
     read            INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS messages_conversation ON messages(conversation_id);
+
+  -- Profile photos, already shrunk by the app. The random id is the photo's address, so a new
+  -- photo gets a new address and old copies cached on phones are never shown by mistake.
+  CREATE TABLE IF NOT EXISTS photos (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    mime       TEXT NOT NULL,
+    data       BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `;
 
 /** A statement plus its arguments, for `db.batch`. */

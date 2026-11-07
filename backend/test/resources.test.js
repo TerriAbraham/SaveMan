@@ -270,3 +270,79 @@ describe('users: own profile and admin actions', () => {
     assert.equal((await ctx.call('PATCH', `/api/users/${admin.id}`, { status: 'suspended' }, tokens.admin)).status, 403);
   });
 });
+
+describe('passwords', () => {
+  async function newClient(email) {
+    const res = await ctx.call('POST', '/api/auth/register', { role: 'client', name: 'Reset Tester', email, password: 'first-pass', phone: '+675 7000 1111', city: 'Lae' });
+    return { id: res.body.user.id, token: res.body.token };
+  }
+
+  test('a signed-in user changes their password with the current one', async () => {
+    const { token } = await newClient('change@test.pg');
+    assert.equal((await ctx.call('POST', '/api/auth/password', { currentPassword: 'wrong', newPassword: 'second-pass' }, token)).status, 401);
+    assert.equal((await ctx.call('POST', '/api/auth/password', { currentPassword: 'first-pass', newPassword: '123' }, token)).status, 400);
+    assert.equal((await ctx.call('POST', '/api/auth/password', { currentPassword: 'first-pass', newPassword: 'second-pass' }, token)).status, 200);
+    assert.equal((await ctx.call('POST', '/api/auth/login', { email: 'change@test.pg', password: 'second-pass' })).body.status, 'ok');
+  });
+
+  test('an admin’s reset code works once and signs the user out everywhere', async () => {
+    const { id, token } = await newClient('forgot@test.pg');
+    const reset = (body) => ctx.call('POST', '/api/auth/password-reset', { email: 'forgot@test.pg', newPassword: 'new-pass', ...body });
+    assert.equal((await reset({ resetCode: 'AAAAA-AAAAA' })).status, 401, 'no code made yet');
+    assert.equal((await ctx.call('POST', `/api/users/${id}/reset-code`, {}, token)).status, 403, 'clients can’t make codes');
+    const admin = (await ctx.call('GET', '/api/auth/me', null, tokens.admin)).body;
+    assert.equal((await ctx.call('POST', `/api/users/${admin.id}/reset-code`, {}, tokens.admin)).status, 403);
+
+    const made = await ctx.call('POST', `/api/users/${id}/reset-code`, {}, tokens.admin);
+    assert.equal(made.status, 201);
+    assert.equal((await reset({ resetCode: 'AAAAA-AAAAA' })).status, 401);
+    assert.equal((await reset({ resetCode: made.body.code.toLowerCase() })).status, 200, 'codes are case-insensitive');
+    assert.equal((await reset({ resetCode: made.body.code })).status, 401, 'used once only');
+    assert.equal((await ctx.call('GET', '/api/auth/me', null, token)).status, 401);
+    assert.equal((await ctx.call('POST', '/api/auth/login', { email: 'forgot@test.pg', password: 'new-pass' })).body.status, 'ok');
+  });
+
+  test('with two-step verification on, the authenticator code resets the password', async () => {
+    const reg = await ctx.call('POST', '/api/auth/register', {
+      role: 'consultant', name: 'Mfa Tester', email: 'mfa-reset@test.pg', password: 'first-pass', phone: '+675 7000 2222', city: 'Lae', title: 'Accountant', categoryId: 'cat-finance',
+    });
+    const setup = await ctx.call('POST', '/api/mfa/setup', {}, reg.body.mfaToken);
+    await ctx.call('POST', '/api/mfa/enable', { code: totpAt(setup.body.secret, Date.now()) }, reg.body.mfaToken);
+    const reset = (body) => ctx.call('POST', '/api/auth/password-reset', { email: 'mfa-reset@test.pg', newPassword: 'new-pass', ...body });
+    assert.equal((await reset({ code: '000000' })).status, 401);
+    // The next 30-second step, as the code used to enrol can't be used again.
+    assert.equal((await reset({ code: totpAt(setup.body.secret, Date.now() + 30_000) })).status, 200);
+    const login = await ctx.call('POST', '/api/auth/login', { email: 'mfa-reset@test.pg', password: 'new-pass' });
+    assert.equal(login.body.status, 'mfa_required', 'logging in still needs the code');
+  });
+});
+
+describe('profile photos', () => {
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), randomBytes(2000)]);
+
+  test('a user uploads, replaces and removes their own photo', async () => {
+    // Its own account: the suspension test above ended the demo client's session.
+    const reg = await ctx.call('POST', '/api/auth/register', { role: 'client', name: 'Photo Tester', email: 'photo@test.pg', password: 'first-pass', phone: '+675 7000 3333', city: 'Lae' });
+    const me = reg.body.user;
+    const mine = reg.body.token;
+    const upload = (image, token = mine) => ctx.call('POST', `/api/users/${me.id}/photo`, { image }, token);
+    assert.equal((await upload(Buffer.from('not a photo').toString('base64'))).status, 400);
+    assert.equal((await upload(jpeg.toString('base64'), tokens.consultant)).status, 403);
+
+    const first = await upload(jpeg.toString('base64'));
+    assert.equal(first.status, 201);
+    assert.match(first.body.avatarUri, /^\/api\/photos\/[\w-]+$/);
+    const res = await fetch(`http://127.0.0.1:${ctx.server.address().port}${first.body.avatarUri}`);
+    assert.equal(res.headers.get('content-type'), 'image/jpeg');
+    assert.deepEqual(Buffer.from(await res.arrayBuffer()), jpeg);
+
+    const second = await upload(jpeg.toString('base64'));
+    assert.notEqual(second.body.avatarUri, first.body.avatarUri, 'a new photo gets a new address');
+    assert.equal((await ctx.call('GET', first.body.avatarUri)).status, 404, 'the old one is deleted');
+
+    assert.equal((await ctx.call('PATCH', `/api/users/${me.id}`, { avatarUri: 'https://example.com/x.jpg' }, mine)).status, 400);
+    const removed = await ctx.call('PATCH', `/api/users/${me.id}`, { avatarUri: null }, mine);
+    assert.equal(removed.body.avatarUri, undefined);
+    assert.equal((await ctx.call('GET', second.body.avatarUri)).status, 404);
+  });
+});

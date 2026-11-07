@@ -73,6 +73,9 @@ export default function LoginScreen() {
         onSubmitEditing={handleLogin}
         returnKeyType="go"
       />
+      <Pressable onPress={() => router.push('/forgot-password')} hitSlop={8} accessibilityRole="button" className="-mt-2 self-end">
+        <Text className="text-label text-red">Forgot password?</Text>
+      </Pressable>
 
       {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
 

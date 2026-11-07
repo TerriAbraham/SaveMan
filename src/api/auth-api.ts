@@ -164,6 +164,13 @@ export const authApi = {
     request<{ recoveryCodes: string[] }>('POST', '/api/mfa/recovery-codes', { code }, token),
   disableMfa: (token: string, password: string, factor: SecondFactor) =>
     request<{ status: 'ok'; user: ApiUser }>('POST', '/api/mfa/disable', { password, ...factor }, token),
+
+  /** Signs out the account's other devices. */
+  changePassword: (token: string, currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>('POST', '/api/auth/password', { currentPassword, newPassword }, token),
+  /** Forgotten password: a reset code from an administrator, or the authenticator (or a recovery code). */
+  resetPassword: (email: string, newPassword: string, proof: SecondFactor | { resetCode: string }) =>
+    request<{ ok: true }>('POST', '/api/auth/password-reset', { email, newPassword, ...proof }),
 };
 
 export function errorMessage(err: unknown) {
