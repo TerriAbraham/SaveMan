@@ -25,6 +25,7 @@ function tursoProblem(err) {
  */
 async function openDatabase() {
   let turso = 'not_configured';
+  let tursoDetail; // TEMPORARY: the last Turso error, without addresses, while diagnosing the Render deploy
   if (TURSO_DATABASE_URL) {
     const host = new URL(TURSO_DATABASE_URL).host;
     if (!TURSO_AUTH_TOKEN) {
@@ -39,6 +40,7 @@ async function openDatabase() {
           return { db, database: 'turso' };
         } catch (err) {
           turso = tursoProblem(err);
+          tursoDetail = describe(err).replace(/[a-z]+:\/\/\S+/gi, '<url>').replace(/[\w.-]+\.turso\.io/gi, '<host>').slice(0, 300);
           console.error(`Couldn't use Turso database ${host} (attempt ${attempt} of ${TURSO_ATTEMPTS}): ${describe(err)}`);
           if (attempt < TURSO_ATTEMPTS) await sleep(attempt * 2000);
         }
@@ -55,11 +57,11 @@ async function openDatabase() {
   if (process.env.NODE_ENV === 'production' && turso === 'not_configured') {
     console.error('TURSO_DATABASE_URL is not set, so data is kept in a local file. Set it (and TURSO_AUTH_TOKEN) to keep data permanently.');
   }
-  return { db, database: 'local', turso };
+  return { db, database: 'local', turso, tursoDetail };
 }
 
-const { db, database, turso } = await openDatabase();
-const app = createApp({ db, keys: deriveKeys(), trustProxy: TRUST_PROXY, database, turso });
+const { db, database, turso, tursoDetail } = await openDatabase();
+const app = createApp({ db, keys: deriveKeys(), trustProxy: TRUST_PROXY, database, turso, tursoDetail });
 
 const server = app.listen(PORT, HOST, () => {
   const lan = Object.values(networkInterfaces())
