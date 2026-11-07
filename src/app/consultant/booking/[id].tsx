@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { modeMeta } from '@/components/booking-card';
@@ -26,6 +27,7 @@ const consultantExplain = {
 } as const;
 
 export default function ConsultantBookingScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user, users } = useAuth();
@@ -53,7 +55,8 @@ export default function ConsultantBookingScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/consultant" />
-      <ScrollView contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
           <Text className="text-body text-fg-muted">

@@ -1,6 +1,7 @@
 import type { Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { authApi, errorMessage, type MfaSetupData, type MfaStatus, type SecondFactor } from '@/api/auth-api';
 import { Icon } from '@/components/icon';
@@ -27,6 +28,7 @@ type Mode =
  * phone, new recovery codes, turn it off (clients).
  */
 export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
+  const insets = useSafeAreaInsets();
   const { user, token, getMfaStatus, startMfaSetup, confirmMfaSetup, regenerateRecoveryCodes, disableMfa } = useAuth();
   const [status, setStatus] = useState<MfaStatus | null>(null);
   const [mode, setMode] = useState<Mode>({ name: 'view' });
@@ -198,7 +200,8 @@ export function SecuritySettings({ fallbackHref }: { fallbackHref: Href }) {
       <ScreenHeader title="Security" subtitle={user.email} fallbackHref={fallbackHref} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         {notice && <Text className="overflow-hidden rounded-lg bg-forest-tint p-3 text-label text-forest">{notice}</Text>}
         {body}
         {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}

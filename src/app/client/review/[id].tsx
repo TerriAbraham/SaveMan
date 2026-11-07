@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
@@ -16,6 +17,7 @@ const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 
 /** Review a completed booking; `id` is the booking id. */
 export default function LeaveReviewScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user, users } = useAuth();
@@ -63,7 +65,8 @@ export default function LeaveReviewScreen() {
       <ScreenHeader title="Leave a review" subtitle={booking.serviceName} fallbackHref="/client/bookings" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View className="items-center gap-2 rounded-card border border-line/70 bg-surface shadow-card p-6">
           <Avatar name={consultant.name} uri={consultant.avatarUri} size="lg" />
           <Text className="mt-1 text-heading text-fg">{consultant.name}</Text>

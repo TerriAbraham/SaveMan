@@ -2,6 +2,7 @@ import * as ExpoLocation from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationPicker } from '@/components/maps/location-picker';
 import { ProfilePhotoPicker } from '@/components/profile-photo-picker';
@@ -27,6 +28,7 @@ export default function EditProfileScreen() {
 }
 
 function EditProfileForm({ consultant }: { consultant: Consultant }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { updateConsultant, updateOwnProfile } = useAuth();
   const { categories } = useData();
@@ -154,7 +156,8 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
       <ScrollView
         scrollEnabled={!mapActive}
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <ProfilePhotoPicker name={name} uri={photo} onChange={(uri) => setPhoto(uri ?? undefined)} />
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">Contact</Text>

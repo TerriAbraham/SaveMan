@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export default function ServiceEditorScreen() {
 }
 
 function ServiceForm({ consultant, existing }: { consultant: Consultant; existing: Service | null }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { saveService, deleteService } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -91,7 +93,8 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
       <ScreenHeader title={existing ? 'Edit service' : 'New service'} fallbackHref="/consultant/services" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <TextField
             label="Service name"

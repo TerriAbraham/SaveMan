@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark, HeroTexture, PatternBand } from '@/components/brand';
 import { Icon } from '@/components/icon';
@@ -9,6 +10,7 @@ import { useServerWaking } from '@/hooks/use-server-waking';
 
 /** Shared frame for the login and sign-up screens. */
 export function AuthScreen({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const waking = useServerWaking();
 
@@ -34,7 +36,8 @@ export function AuthScreen({ title, subtitle, children }: { title: string; subti
       <PatternBand size="md" />
       <ScrollView
         className="flex-1 bg-sand"
-        contentContainerClassName="gap-4 px-6 pt-6 pb-safe-offset-8"
+        contentContainerClassName="gap-4 px-6 pt-6"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         keyboardShouldPersistTaps="handled">
         {waking && (
           <View accessibilityLiveRegion="polite" className="flex-row items-center gap-3 rounded-card border border-gold/40 bg-gold-tint p-4">

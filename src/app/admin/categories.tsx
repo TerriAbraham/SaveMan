@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import type { Category } from '@/data/types';
 
 /** Admin: create, rename and delete the service categories clients filter by. */
 export default function CategoriesScreen() {
+  const insets = useSafeAreaInsets();
   const { users } = useAuth();
   const { categories, saveCategory, deleteCategory } = useData();
 
@@ -69,7 +71,8 @@ export default function CategoriesScreen() {
       <ScreenHeader title="Categories" subtitle="Service areas clients can filter by" fallbackHref="/admin" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">{editingId ? 'Edit category' : 'Add a category'}</Text>
           <TextField

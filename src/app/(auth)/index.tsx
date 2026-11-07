@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { BrandMark, HeroTexture, PatternBand, Wordmark } from '@/components/brand';
@@ -50,6 +51,7 @@ const faqs: { q: string; a: string }[] = [
 
 /** Public home page: what SaveMan is, what's on offer, and how to get started. */
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { users } = useAuth();
   const { categories, reviews } = useData();
@@ -72,7 +74,7 @@ export default function WelcomeScreen() {
   const logIn = () => router.push('/login');
 
   return (
-    <ScrollView contentContainerClassName="pb-safe-offset-8" className="flex-1 bg-sand">
+    <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }} className="flex-1 bg-sand">
       {/* Hero */}
       <View className="gap-4 overflow-hidden px-6 pb-8 pt-safe-offset-5">
         <HeroTexture />

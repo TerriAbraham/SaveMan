@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfilePhotoPicker } from '@/components/profile-photo-picker';
 import { ScreenHeader } from '@/components/screen-header';
@@ -18,6 +19,7 @@ export default function ClientEditProfileScreen() {
 }
 
 function ClientProfileForm({ client }: { client: Client }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { updateOwnProfile } = useAuth();
   const [name, setName] = useState(client.name);
@@ -44,7 +46,8 @@ function ClientProfileForm({ client }: { client: Client }) {
       <ScreenHeader title="Edit profile" subtitle={client.email} fallbackHref="/client/profile" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <ProfilePhotoPicker name={name} uri={photo} onChange={(uri) => setPhoto(uri ?? undefined)} />
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <TextField label="Full name" icon="person" value={name} onChangeText={setName} autoComplete="name" />

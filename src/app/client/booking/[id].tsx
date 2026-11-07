@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { modeMeta } from '@/components/booking-card';
@@ -18,6 +19,7 @@ import { formatDate, formatDuration, formatKina } from '@/utils/format';
 import { callPhone } from '@/utils/phone';
 
 export default function BookingDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id, justBooked } = useLocalSearchParams<{ id: string; justBooked?: string }>();
   const router = useRouter();
   const { user, users } = useAuth();
@@ -67,7 +69,8 @@ export default function BookingDetailScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/client/bookings" />
-      <ScrollView contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         {justBooked === '1' && booking.status === 'pending' && (
           <View className="flex-row items-start gap-3 rounded-card bg-forest-tint p-4">
             <Icon name="check" size={24} color={colors.forest} />
