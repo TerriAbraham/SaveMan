@@ -318,8 +318,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let image;
       try {
         image = await shrinkPhoto(avatarUri);
-      } catch {
-        return 'That photo couldn’t be read. Try a different one.';
+      } catch (err) {
+        console.warn('Could not shrink the profile photo', err);
+        // A build made before photo uploads has no image tools, so every photo fails there.
+        return /native module|ImageManipulator/i.test(String(err))
+          ? 'This version of the app can’t upload photos. Install the latest SaveMan build and try again.'
+          : 'That photo couldn’t be read. Try a different one.';
       }
       const error = await saveUser((t) => dataApi.users.uploadPhoto(t, user.id, image));
       if (error) return error;

@@ -1,6 +1,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { bookingStatusMeta } from '@/components/booking-status';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
@@ -78,7 +79,16 @@ export default function AdminOverviewScreen() {
       </View>
 
       <View className="mt-2 gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
-        <Text className="text-label text-fg-muted">Signed in as {user?.email}</Text>
+        {user && (
+          <View className="flex-row items-center gap-3">
+            <Avatar name={user.name} uri={user.avatarUri} />
+            <View className="flex-1">
+              <Text className="text-heading text-fg">{user.name}</Text>
+              <Text className="text-label font-normal text-fg-muted">Signed in as {user.email}</Text>
+            </View>
+          </View>
+        )}
+        <Button title="Edit profile" variant="secondary" onPress={() => router.push('/admin/edit-profile')} />
         <Button title="Log out" variant="outline" onPress={signOut} />
       </View>
     </ScrollView>

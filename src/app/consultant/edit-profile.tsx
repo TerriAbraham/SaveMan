@@ -132,6 +132,8 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     if (contactError) {
       setSaving(false);
       setErrors({ contact: contactError });
+      // The Save button is far below the Contact card, so say it here too.
+      Alert.alert('Could not save your profile', contactError);
       return;
     }
     const profileError = await updateConsultant({

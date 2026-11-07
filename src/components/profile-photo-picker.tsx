@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -16,17 +16,58 @@ const options: ImagePicker.ImagePickerOptions = {
   quality: 0.6,
 };
 
-/** Profile photo for the edit-profile screens: choose from the library, take one, or remove it. */
+/** The picked photo's address, or null when the picker was closed without one. */
+function pickedUri(result: ImagePicker.ImagePickerResult) {
+  return !result.canceled && result.assets?.[0]?.uri ? result.assets[0].uri : null;
+}
+
+/**
+ * Profile photo for the edit-profile screens: choose from the library, take one, or remove it.
+ * The new photo shows here straight away; it's uploaded when the profile is saved.
+ */
 export function ProfilePhotoPicker({ name, uri, onChange }: { name: string; uri?: string; onChange: (uri: string | null) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [cameraBlocked, setCameraBlocked] = useState(false);
+  const [opening, setOpening] = useState(false);
 
-  async function choose() {
+  // Android can close SaveMan's screen while the photo picker or crop screen is open (low memory),
+  // which loses the photo. The picker keeps it, so pick it up when this screen opens again.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    let live = true;
+    ImagePicker.getPendingResultAsync()
+      .then((result) => {
+        if (!live || !result) return;
+        if ('code' in result) setError('That photo couldn’t be opened. Please choose it again.');
+        else {
+          const picked = pickedUri(result);
+          if (picked) onChange(picked);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // Once, when the screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function open(launch: () => Promise<ImagePicker.ImagePickerResult>) {
+    if (opening) return;
     setError(null);
-    // The system photo picker needs no permission on current iOS and Android.
-    const result = await ImagePicker.launchImageLibraryAsync(options);
-    if (!result.canceled) onChange(result.assets[0].uri);
+    setOpening(true);
+    try {
+      const picked = pickedUri(await launch());
+      if (picked) onChange(picked);
+    } catch {
+      setError('That photo couldn’t be opened. Try a different photo, or take a new one.');
+    } finally {
+      setOpening(false);
+    }
   }
+
+  // The system photo picker needs no permission on current iOS and Android.
+  const choose = () => open(() => ImagePicker.launchImageLibraryAsync(options));
 
   async function takePhoto() {
     setError(null);
@@ -36,8 +77,7 @@ export function ProfilePhotoPicker({ name, uri, onChange }: { name: string; uri?
       setError('SaveMan needs camera access to take a photo. You can choose one from your photos instead.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync(options);
-    if (!result.canceled) onChange(result.assets[0].uri);
+    await open(() => ImagePicker.launchCameraAsync(options));
   }
 
   return (
