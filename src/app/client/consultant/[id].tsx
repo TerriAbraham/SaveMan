@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { HeroTexture, PatternBand } from '@/components/brand';
@@ -21,6 +22,7 @@ export default function ConsultantProfileScreen() {
   const { categories } = useData();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const consultant = usePublicConsultant(id);
 
   if (!consultant) {
@@ -44,7 +46,8 @@ export default function ConsultantProfileScreen() {
 
   return (
     <View className="flex-1 bg-sand">
-      <ScrollView contentContainerClassName="pb-safe-offset-[110px]">
+      {/* Leave room for the sticky bar (about 110px tall) plus the system navigation bar under it. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}>
         <View className="overflow-hidden px-6 pb-6">
           <HeroTexture />
           <TopBar />
@@ -130,7 +133,8 @@ export default function ConsultantProfileScreen() {
 
       {/* Sticky booking bar */}
       <View
-        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-3 border-t border-line bg-surface px-4 pt-3 pb-safe-offset-3">
+        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-3 border-t border-line bg-surface px-4 pt-3"
+        style={{ paddingBottom: insets.bottom + 12 }}>
         <View>
           <Text className="text-caption text-fg-muted">Sessions from</Text>
           <Text className="text-title text-fg">{formatKina(startingPrice)}</Text>

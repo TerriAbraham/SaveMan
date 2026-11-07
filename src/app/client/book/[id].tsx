@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { dataApi, type BusyTime } from '@/api/data-api';
 import { modeMeta } from '@/components/booking-card';
@@ -23,6 +24,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export default function BookSessionScreen() {
   const { id, service } = useLocalSearchParams<{ id: string; service?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { bookings, createBooking } = useData();
   const consultant = usePublicConsultant(id);
@@ -227,7 +229,7 @@ export default function BookSessionScreen() {
         </Step>
       </ScrollView>
 
-      <View className="gap-2 border-t border-line bg-surface px-4 pt-3 pb-safe-offset-3">
+      <View className="gap-2 border-t border-line bg-surface px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
         {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
         <Text className="text-caption text-fg-muted" numberOfLines={1}>
           {time && timeStillFree

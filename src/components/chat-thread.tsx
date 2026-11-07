@@ -1,6 +1,7 @@
 import type { Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
@@ -20,6 +21,7 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
   const { user, users } = useAuth();
   const { sendMessage, markConversationRead } = useData();
   const { conversation, messages } = useThread(otherId);
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -109,7 +111,8 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
 
       {error && <Text className="bg-red-tint px-4 py-2 text-label text-red-dark">{error}</Text>}
       <View
-        className="flex-row items-end gap-2 border-t border-line bg-surface px-3 pt-2 pb-safe-or-2">
+        className="flex-row items-end gap-2 border-t border-line bg-surface px-3 pt-2"
+        style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
         <TextInput
           value={draft}
           onChangeText={setDraft}

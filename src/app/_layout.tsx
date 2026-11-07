@@ -4,6 +4,7 @@ import '@/nativewind-interop';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/auth-context';
@@ -14,13 +15,17 @@ import { DataProvider } from '@/context/data-context';
 LogBox.ignoreLogs(['ImageBackground is deprecated']);
 
 export default function RootLayout() {
+  // NativeWind only feeds real insets to its safe-area classes (pt-safe, pb-safe-offset-*) when
+  // SafeAreaProvider is rendered from app code; Expo Router's built-in provider doesn't count.
   return (
-    <AuthProvider>
-      <DataProvider>
-        <StatusBar style="light" />
-        <RootNavigator />
-      </DataProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <DataProvider>
+          <StatusBar style="light" />
+          <RootNavigator />
+        </DataProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
