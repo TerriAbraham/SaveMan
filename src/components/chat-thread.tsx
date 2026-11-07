@@ -1,7 +1,6 @@
 import type { Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
@@ -18,12 +17,12 @@ type Row = { kind: 'day'; key: string; date: string } | { kind: 'message'; key: 
 
 /** A one-to-one chat between a client and a consultant, from either side. */
 export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbackHref: Href }) {
-  const insets = useSafeAreaInsets();
   const { user, users } = useAuth();
   const { sendMessage, markConversationRead } = useData();
   const { conversation, messages } = useThread(otherId);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const other = users.find((u) => u.id === otherId);
   const conversationId = conversation?.id;
@@ -57,11 +56,13 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
   });
   rows.reverse();
 
-  const canSend = draft.trim().length > 0;
+  const canSend = draft.trim().length > 0 && !sending;
 
-  function send() {
+  async function send() {
     if (!canSend) return;
-    const result = sendMessage(otherId, draft);
+    setSending(true);
+    const result = await sendMessage(otherId, draft);
+    setSending(false);
     setError(result);
     if (!result) setDraft(''); // keep the text if sending failed
   }
@@ -71,7 +72,7 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
       <ScreenHeader
         title={other.name}
         subtitle={other.role === 'consultant' ? other.title : 'SaveMan client'}
-        leading={<Avatar name={other.name} size="sm" />}
+        leading={<Avatar name={other.name} uri={other.avatarUri} size="sm" />}
         fallbackHref={fallbackHref}
       />
 
@@ -108,8 +109,7 @@ export function ChatThread({ otherId, fallbackHref }: { otherId: string; fallbac
 
       {error && <Text className="bg-red-tint px-4 py-2 text-label text-red-dark">{error}</Text>}
       <View
-        className="flex-row items-end gap-2 border-t border-line bg-surface px-3 pt-2"
-        style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+        className="flex-row items-end gap-2 border-t border-line bg-surface px-3 pt-2 pb-safe-or-2">
         <TextInput
           value={draft}
           onChangeText={setDraft}

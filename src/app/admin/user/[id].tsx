@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { BookingStatusPill } from '@/components/booking-status';
@@ -21,7 +20,6 @@ import { formatDate, formatKina } from '@/utils/format';
 
 export default function AdminUserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const insets = useSafeAreaInsets();
   const { users } = useAuth();
   const { bookings, categories } = useData();
   const actions = useAdminActions();
@@ -48,10 +46,10 @@ export default function AdminUserScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScreenHeader title={user.name} subtitle={user.role === 'client' ? 'Client account' : 'Consultant account'} fallbackHref="/admin/users" />
-      <ScrollView contentContainerClassName="gap-4 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         <Card>
           <View className="flex-row items-center gap-3">
-            <Avatar name={user.name} />
+            <Avatar name={user.name} uri={user.avatarUri} />
             <View className="flex-1 gap-1">
               <Text className="text-heading text-fg">{user.name}</Text>
               <UserBadges user={user} />

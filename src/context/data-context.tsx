@@ -1,15 +1,15 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
+import { ApiError, errorMessage } from '@/api/auth-api';
+import { dataApi } from '@/api/data-api';
 import { useAuth } from '@/context/auth-context';
-import { bookings as seedBookings, conversations as seedConversations, messages as seedMessages, reviews as seedReviews } from '@/data/activity';
+import { reviews as seedReviews } from '@/data/activity';
 import { categories as seedCategories } from '@/data/categories';
 import type { Booking, Category, Conversation, Message, Review } from '@/data/types';
-import { getSlots, isUpcoming } from '@/utils/availability';
-import { canAccept, canComplete, canDecline, canReview, hasStarted } from '@/utils/booking-rules';
-import { validateCategory } from '@/utils/categories';
-import { toLocalDateTime } from '@/utils/dates';
+import { useSavedState } from '@/hooks/use-saved-state';
 
-/** What a client chooses on the booking screen. Everything else comes from the store. */
+/** What a client chooses on the booking screen. Everything else comes from the server. */
 export interface BookingRequest {
   consultantId: string;
   serviceId: string;
@@ -22,198 +22,193 @@ export type BookingResponse = 'accept' | 'decline' | 'complete';
 export type NewReview = Pick<Review, 'bookingId' | 'rating' | 'comment'>;
 export type CategoryDraft = Pick<Category, 'name' | 'description'>;
 
-// Actions return an error message for the screen to show, or null on success.
-// Each one checks the signed-in user itself rather than trusting the caller.
+/** How often signed-in data is reloaded while the app is open, so new bookings and messages show up. */
+const REFRESH_MS = 30_000;
+
+// Actions resolve to an error message for the screen to show, or null on success.
+// The server checks the caller's role and ownership for every one of them.
 interface DataContextValue {
   bookings: Booking[];
   reviews: Review[];
   conversations: Conversation[];
   messages: Message[];
   categories: Category[];
-  createBooking: (request: BookingRequest) => { booking: Booking; error?: never } | { booking?: never; error: string };
+  /** True while data is being reloaded from the server. */
+  refreshing: boolean;
+  /** Set when the last reload failed (usually offline); the saved copy is shown meanwhile. */
+  offline: boolean;
+  refresh: () => Promise<void>;
+  createBooking: (request: BookingRequest) => Promise<{ booking: Booking; error?: never } | { booking?: never; error: string }>;
   /** Client cancels their own upcoming booking. */
-  cancelBooking: (bookingId: string) => string | null;
+  cancelBooking: (bookingId: string) => Promise<string | null>;
   /** Consultant accepts, declines or completes one of their bookings. */
-  respondToBooking: (bookingId: string, response: BookingResponse) => string | null;
+  respondToBooking: (bookingId: string, response: BookingResponse) => Promise<string | null>;
   /** Client reviews their own completed booking, once. */
-  addReview: (input: NewReview) => string | null;
+  addReview: (input: NewReview) => Promise<string | null>;
   /** Admin: hide a review and take it out of the rating. */
-  removeReview: (reviewId: string) => string | null;
+  removeReview: (reviewId: string) => Promise<string | null>;
   /** Admin: undo a removal. */
-  restoreReview: (reviewId: string) => string | null;
+  restoreReview: (reviewId: string) => Promise<string | null>;
   /** Message between the signed-in user and `otherId` (client <-> consultant only). */
-  sendMessage: (otherId: string, text: string) => string | null;
+  sendMessage: (otherId: string, text: string) => Promise<string | null>;
   markConversationRead: (conversationId: string) => void;
   /** Admin category management. */
-  saveCategory: (draft: CategoryDraft, editingId: string | null) => string | null;
-  deleteCategory: (categoryId: string) => string | null;
+  saveCategory: (draft: CategoryDraft, editingId: string | null) => Promise<string | null>;
+  deleteCategory: (categoryId: string) => Promise<string | null>;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
 
-let nextId = 1;
-const newId = (prefix: string) => `${prefix}-new-${Date.now()}-${nextId++}`;
+const replaceById = <T extends { id: string }>(list: T[], item: T) =>
+  list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
 
-// In-memory only, like auth: changes reset when the app reloads.
-// It sits above the auth screens so data survives logging out and in as another role.
+// Data comes from the SaveMan API and is saved on the device (SQLite), so the last copy can be
+// browsed offline. Changes need the server. It sits above the auth screens: the home page shows
+// public data (categories, consultants, reviews) before anyone logs in.
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user, users, adjustRating } = useAuth();
-  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [reviews, setReviews] = useState<Review[]>(seedReviews);
-  const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
-  const [messages, setMessages] = useState<Message[]>(seedMessages);
-  const [categories, setCategories] = useState<Category[]>(seedCategories);
+  const { user, token, refreshUsers, refreshUser, signOut } = useAuth();
+  // Public data starts from the bundled dummy data, so the home page works offline on first launch.
+  // Private data starts empty and only ever holds the signed-in user's own records.
+  const [bookings, setBookings] = useSavedState<Booking[]>('bookings', []);
+  const [reviews, setReviews] = useSavedState<Review[]>('reviews', seedReviews);
+  const [conversations, setConversations] = useSavedState<Conversation[]>('conversations', []);
+  const [messages, setMessages] = useSavedState<Message[]>('messages', []);
+  const [categories, setCategories] = useSavedState<Category[]>('categories', seedCategories);
+  const [refreshing, setRefreshing] = useState(false);
+  const [offline, setOffline] = useState(false);
 
-  function createBooking(request: BookingRequest) {
-    if (user?.role !== 'client') return { error: 'Only clients can book sessions.' };
-    const consultant = users.find((u) => u.id === request.consultantId);
-    if (consultant?.role !== 'consultant' || consultant.verification !== 'verified' || consultant.status !== 'active') {
-      return { error: 'This consultant is not taking bookings right now.' };
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [cats, revs] = await Promise.all([dataApi.categories.list(), dataApi.reviews.list(token), refreshUsers()]);
+      setCategories(cats);
+      setReviews(revs);
+      if (token) {
+        const [b, c, m] = await Promise.all([dataApi.bookings.list(token), dataApi.conversations.list(token), dataApi.messages.list(token)]);
+        setBookings(b);
+        setConversations(c);
+        setMessages(m);
+      }
+      setOffline(false);
+    } catch (err) {
+      // Expired or suspended: back to the login screen. Otherwise keep showing the saved copy.
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403) && token) signOut();
+      else setOffline(true);
+    } finally {
+      setRefreshing(false);
     }
-    const service = consultant.services.find((s) => s.id === request.serviceId);
-    if (!service) return { error: 'That service is no longer offered. Please choose another.' };
-    // Re-check the slot here: it may have been taken since the screen was drawn.
-    const slot = getSlots(consultant, request.date, service.durationMins, bookings).find((s) => s.time === request.time);
-    if (!slot?.available) return { error: 'That time is no longer available. Please pick another.' };
+  }, [token, refreshUsers, signOut, setCategories, setReviews, setBookings, setConversations, setMessages]);
 
-    // New requests wait for the consultant to accept them. Price and length are copied
-    // so later service edits don't change an existing booking.
-    const booking: Booking = {
-      id: newId('b'),
-      clientId: user.id,
-      consultantId: consultant.id,
-      serviceName: service.name,
-      date: request.date,
-      time: request.time,
-      durationMins: service.durationMins,
-      mode: request.mode,
-      note: request.note.trim(),
-      status: 'pending',
-      price: service.price,
+  // Logging out clears the previous user's private records from this device.
+  const previousToken = useRef(token);
+  useEffect(() => {
+    if (previousToken.current && !token) {
+      setBookings([]);
+      setConversations([]);
+      setMessages([]);
+    }
+    previousToken.current = token;
+  }, [token, setBookings, setConversations, setMessages]);
+
+  // Reload on start, on login/logout, when the app comes back to the foreground, and every 30 s while signed in.
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+  useEffect(() => {
+    refreshRef.current();
+    const sub = AppState.addEventListener('change', (state) => state === 'active' && refreshRef.current());
+    const timer = token ? setInterval(() => AppState.currentState === 'active' && refreshRef.current(), REFRESH_MS) : undefined;
+    return () => {
+      sub.remove();
+      clearInterval(timer);
     };
-    setBookings((prev) => [...prev, booking]);
-    return { booking };
+  }, [token]);
+
+  /** Runs an API call with the session token. Resolves to an error message, or null. */
+  async function run(action: (token: string) => Promise<void>) {
+    if (!token) return 'Please log in again.';
+    try {
+      await action(token);
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    }
   }
 
-  function cancelBooking(bookingId: string) {
-    const booking = bookings.find((b) => b.id === bookingId);
-    if (!booking || booking.clientId !== user?.id) return 'Booking not found.';
-    if (!isUpcoming(booking) || hasStarted(booking)) return 'Only upcoming sessions can be cancelled.';
-    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b)));
-    return null;
+  async function createBooking(request: BookingRequest) {
+    if (!token) return { error: 'Please log in again.' };
+    try {
+      const booking = await dataApi.bookings.create(token, request);
+      setBookings((prev) => [...prev, booking]);
+      return { booking };
+    } catch (err) {
+      return { error: errorMessage(err) };
+    }
   }
+
+  const setBookingStatus = (bookingId: string, status: Booking['status']) =>
+    run(async (t) => {
+      const updated = await dataApi.bookings.setStatus(t, bookingId, status);
+      setBookings((prev) => replaceById(prev, updated));
+    });
+
+  const cancelBooking = (bookingId: string) => setBookingStatus(bookingId, 'cancelled');
 
   function respondToBooking(bookingId: string, response: BookingResponse) {
-    const booking = bookings.find((b) => b.id === bookingId);
-    if (!booking || user?.role !== 'consultant' || booking.consultantId !== user.id) return 'Booking not found.';
-    const rules = {
-      accept: { allowed: canAccept(booking), status: 'confirmed', error: 'Only upcoming requests can be accepted.' },
-      decline: { allowed: canDecline(booking), status: 'declined', error: 'Only requests can be declined.' },
-      complete: {
-        allowed: canComplete(booking),
-        status: 'completed',
-        error: 'A session can be marked completed once it has started.',
-      },
-    } as const;
-    const rule = rules[response];
-    if (!rule.allowed) return rule.error;
-    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: rule.status } : b)));
-    return null;
+    const status = ({ accept: 'confirmed', decline: 'declined', complete: 'completed' } as const)[response];
+    return setBookingStatus(bookingId, status);
   }
 
-  function addReview({ bookingId, rating, comment }: NewReview) {
-    const booking = bookings.find((b) => b.id === bookingId);
-    if (!booking || !user || !canReview(booking, reviews, user.id)) {
-      return 'You can review a session once, after it has been completed.';
-    }
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return 'Choose a rating from 1 to 5 stars.';
-    const review: Review = {
-      id: newId('r'),
-      bookingId,
-      clientId: user.id,
-      consultantId: booking.consultantId,
-      rating,
-      comment: comment.trim().slice(0, 500),
-      createdAt: toLocalDateTime(new Date()).slice(0, 10),
-    };
-    setReviews((prev) => [...prev, review]);
-    adjustRating(booking.consultantId, rating, 1);
-    return null;
-  }
+  const addReview = (input: NewReview) =>
+    run(async (t) => {
+      const review = await dataApi.reviews.create(t, input);
+      setReviews((prev) => [review, ...prev]);
+      await refreshUser(review.consultantId); // the server updated their rating
+    });
 
-  function moderateReview(reviewId: string, remove: boolean) {
-    if (user?.role !== 'admin') return 'Only an administrator can do this.';
-    const review = reviews.find((r) => r.id === reviewId);
-    if (!review) return 'Review not found.';
-    if (Boolean(review.removedAt) === remove) return remove ? 'This review is already removed.' : 'This review is already visible.';
-    setReviews((prev) =>
-      prev.map((r) => (r.id === reviewId ? { ...r, removedAt: remove ? toLocalDateTime(new Date()) : undefined } : r)),
-    );
-    adjustRating(review.consultantId, review.rating, remove ? -1 : 1);
-    return null;
-  }
+  const moderateReview = (reviewId: string, removed: boolean) =>
+    run(async (t) => {
+      const review = await dataApi.reviews.setRemoved(t, reviewId, removed);
+      setReviews((prev) => replaceById(prev, review));
+      await refreshUser(review.consultantId);
+    });
 
-  function sendMessage(otherId: string, text: string) {
-    const other = users.find((u) => u.id === otherId);
-    const body = text.trim();
-    if (!user || !other) return 'Conversation not available.';
-    const pair =
-      user.role === 'client' && other.role === 'consultant'
-        ? { clientId: user.id, consultantId: other.id }
-        : user.role === 'consultant' && other.role === 'client'
-          ? { clientId: other.id, consultantId: user.id }
-          : null;
-    if (!pair) return 'Clients and consultants can only message each other.';
-    if (body === '') return 'Write a message first.';
-    if (body.length > 1000) return 'Messages can be up to 1000 characters.';
+  const sendMessage = (otherId: string, text: string) => {
+    if (text.trim() === '') return Promise.resolve('Write a message first.');
+    return run(async (t) => {
+      const { conversation, message } = await dataApi.messages.send(t, otherId, text.trim());
+      setConversations((prev) => replaceById(prev, conversation));
+      setMessages((prev) => [...prev, message]);
+    });
+  };
 
-    // A conversation is created with its first message. New ids are derived from the
-    // pair, so two quick sends can never create two conversations.
-    const existing = conversations.find((c) => c.clientId === pair.clientId && c.consultantId === pair.consultantId);
-    const conversationId = existing?.id ?? `c-${pair.clientId}-${pair.consultantId}`;
-    if (!existing) {
-      setConversations((prev) => (prev.some((c) => c.id === conversationId) ? prev : [...prev, { id: conversationId, ...pair }]));
-    }
-    const message: Message = {
-      id: newId('m'),
-      conversationId,
-      senderId: user.id,
-      text: body,
-      sentAt: toLocalDateTime(new Date()),
-      read: false,
-    };
-    setMessages((prev) => [...prev, message]);
-    return null;
-  }
+  // Shown as read straight away; the server is told in the background.
+  const markConversationRead = useCallback(
+    (conversationId: string) => {
+      if (!user || !token) return;
+      let changed = false;
+      setMessages((prev) => {
+        if (!prev.some((m) => m.conversationId === conversationId && m.senderId !== user.id && !m.read)) return prev;
+        changed = true;
+        return prev.map((m) => (m.conversationId === conversationId && m.senderId !== user.id ? { ...m, read: true } : m));
+      });
+      if (changed) dataApi.conversations.markRead(token, conversationId).catch(() => {});
+    },
+    [user, token, setMessages],
+  );
 
-  function markConversationRead(conversationId: string) {
-    if (!user) return;
-    setMessages((prev) =>
-      prev.some((m) => m.conversationId === conversationId && m.senderId !== user.id && !m.read)
-        ? prev.map((m) => (m.conversationId === conversationId && m.senderId !== user.id ? { ...m, read: true } : m))
-        : prev,
-    );
-  }
+  const saveCategory = (draft: CategoryDraft, editingId: string | null) =>
+    run(async (t) => {
+      const category = editingId ? await dataApi.categories.update(t, editingId, draft) : await dataApi.categories.create(t, draft);
+      setCategories((prev) => replaceById(prev, category));
+    });
 
-  function saveCategory(draft: CategoryDraft, editingId: string | null) {
-    if (user?.role !== 'admin') return 'Only an administrator can do this.';
-    const errors = validateCategory(draft, categories, editingId);
-    const first = errors.name ?? errors.description;
-    if (first) return first;
-    const category: Category = { id: editingId ?? newId('cat'), name: draft.name.trim(), description: draft.description.trim() };
-    setCategories((prev) => (editingId ? prev.map((c) => (c.id === editingId ? category : c)) : [...prev, category]));
-    return null;
-  }
-
-  function deleteCategory(categoryId: string) {
-    if (user?.role !== 'admin') return 'Only an administrator can do this.';
-    const inUse = users.filter((u) => u.role === 'consultant' && u.categoryId === categoryId).length;
-    if (inUse > 0) {
-      return `${inUse} consultant${inUse > 1 ? 's use' : ' uses'} this category. Move them to another category first.`;
-    }
-    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
-    return null;
-  }
+  const deleteCategory = (categoryId: string) =>
+    run(async (t) => {
+      await dataApi.categories.remove(t, categoryId);
+      setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+    });
 
   return (
     <DataContext.Provider
@@ -223,6 +218,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         conversations,
         messages,
         categories,
+        refreshing,
+        offline,
+        refresh,
         createBooking,
         cancelBooking,
         respondToBooking,

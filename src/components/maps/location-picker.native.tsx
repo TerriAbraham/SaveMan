@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { MapView, Marker } from '@/components/maps/styled-map-view';
 
 import { MarkerPin } from '@/components/maps/marker-pin';
 import { regionAround } from '@/utils/geo';
@@ -26,7 +26,7 @@ export function LocationPicker({ value, onChange, onInteractionChange }: Locatio
       onTouchCancel={() => onInteractionChange?.(false)}>
       <MapView
         ref={mapRef}
-        style={{ flex: 1 }}
+        className="flex-1"
         initialRegion={regionAround(value, 0.05)}
         onPress={(e) => onChange(e.nativeEvent.coordinate)}
         rotateEnabled={false}

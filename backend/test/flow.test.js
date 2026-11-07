@@ -12,7 +12,7 @@ let clock = Date.parse('2026-11-07T09:00:00Z');
 const tick = (ms) => (clock += ms);
 
 async function startServer(opts = {}) {
-  const db = openDb(':memory:');
+  const db = await openDb({ path: ':memory:' });
   await seedIfEmpty(db);
   const app = createApp({ db, keys: deriveKeys(randomBytes(32)), now: () => clock, limits: { auth: 1000, mfa: 1000 }, ...opts });
   const server = await new Promise((resolve) => {
@@ -89,9 +89,9 @@ describe('MFA flows', () => {
     assert.equal((await ctx.call('POST', '/api/mfa/enable', { code: '123456' }, token)).status, 401);
 
     // The secret and recovery codes are not stored in plain text.
-    const row = ctx.db.prepare('SELECT mfa_secret_enc FROM users WHERE id = ?').get('u-admin-1');
+    const row = await ctx.db.get('SELECT mfa_secret_enc FROM users WHERE id = ?', 'u-admin-1');
     assert.ok(!row.mfa_secret_enc.includes(setup.body.secret));
-    const hashes = ctx.db.prepare('SELECT code_hash FROM recovery_codes WHERE user_id = ?').all('u-admin-1').map((r) => r.code_hash);
+    const hashes = (await ctx.db.all('SELECT code_hash FROM recovery_codes WHERE user_id = ?', 'u-admin-1')).map((r) => r.code_hash);
     assert.equal(hashes.length, 10);
     for (const code of enabled.body.recoveryCodes) assert.ok(!hashes.includes(code));
 
@@ -186,7 +186,7 @@ describe('MFA flows', () => {
     assert.equal((await ctx.call('GET', '/api/mfa/status', null, session)).status, 401);
     assert.equal((await ctx.call('GET', '/api/mfa/status', null, s2)).body.enabled, false);
     assert.equal((await login(ctx.call, 'peter@example.pg', 'client123')).body.status, 'ok');
-    assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM recovery_codes WHERE user_id = ?').get('u-client-2').n, 0);
+    assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM recovery_codes WHERE user_id = ?', 'u-client-2')).n, 0);
   });
 
   test('moving MFA to a new phone needs the password and current code; old one works until confirmed', async () => {

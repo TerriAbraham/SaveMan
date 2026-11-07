@@ -7,9 +7,9 @@ import type { Booking } from '@/data/types';
 export function useBookingActions() {
   const { respondToBooking } = useData();
 
-  // The store checks the booking belongs to the signed-in consultant.
-  function run(booking: Booking, response: BookingResponse) {
-    const error = respondToBooking(booking.id, response);
+  // The server checks the booking belongs to the signed-in consultant.
+  async function run(booking: Booking, response: BookingResponse) {
+    const error = await respondToBooking(booking.id, response);
     if (error) Alert.alert('Could not update booking', error);
   }
 

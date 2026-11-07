@@ -36,7 +36,17 @@
         {
           "locationWhenInUsePermission": "SaveMan uses your location to place your office pin on the map."
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SaveMan uses your photos so you can choose a profile picture.",
+          "cameraPermission": "SaveMan uses the camera so you can take a profile picture.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

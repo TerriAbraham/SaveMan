@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -22,7 +22,9 @@ export default function SignUpScreen() {
   const { categories } = useData();
   const router = useRouter();
   const { signUp } = useAuth();
-  const [accountType, setAccountType] = useState<AccountType>('client');
+  // The home page links here with ?role=consultant for "Apply as a consultant".
+  const { role } = useLocalSearchParams<{ role?: string }>();
+  const [accountType, setAccountType] = useState<AccountType>(role === 'consultant' ? 'consultant' : 'client');
   const [form, setForm] = useState<Record<Field, string>>({
     name: '',
     email: '',

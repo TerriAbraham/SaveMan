@@ -23,6 +23,8 @@ interface BaseUser {
   email: string;
   password: string; // dummy data only: never store plain passwords in a real backend
   phone: string;
+  /** Profile photo picked on the phone (a local image URI). Initials are shown without one. */
+  avatarUri?: string;
   status: AccountStatus;
   createdAt: string; // ISO date
 }

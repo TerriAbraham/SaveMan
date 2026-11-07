@@ -4,12 +4,13 @@ import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import type { Review, User } from '@/data/types';
 
-/** Admin actions with confirmations for anything destructive, and an alert if the store refuses. */
+/** Admin actions with confirmations for anything destructive, and an alert if the server refuses. */
 export function useAdminActions() {
   const { setVerification, setAccountStatus } = useAuth();
   const { removeReview, restoreReview } = useData();
 
-  const report = (error: string | null) => {
+  const report = async (pending: Promise<string | null>) => {
+    const error = await pending;
     if (error) Alert.alert('Could not complete action', error);
   };
 

@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { MapView, Marker } from '@/components/maps/styled-map-view';
 
 import { MarkerPin } from '@/components/maps/marker-pin';
 import { regionAround } from '@/utils/geo';
@@ -12,7 +12,7 @@ export function LocationPreview({ location, name }: LocationPreviewProps) {
     // Android maps ignore borderRadius, so the wrapper does the clipping.
     <View className="h-[180px] overflow-hidden rounded-xl">
       <MapView
-        style={{ flex: 1 }}
+        className="flex-1"
         // Controlled region so the map follows edits to the location.
         region={regionAround(location, 0.03)}
         scrollEnabled={false}

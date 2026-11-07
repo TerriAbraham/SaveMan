@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { modeMeta } from '@/components/booking-card';
@@ -21,7 +20,6 @@ import { callPhone } from '@/utils/phone';
 export default function BookingDetailScreen() {
   const { id, justBooked } = useLocalSearchParams<{ id: string; justBooked?: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, users } = useAuth();
   const { bookings, reviews, cancelBooking } = useData();
 
@@ -58,8 +56,8 @@ export default function BookingDetailScreen() {
       {
         text: 'Cancel booking',
         style: 'destructive',
-        onPress: () => {
-          const error = cancelBooking(booking!.id);
+        onPress: async () => {
+          const error = await cancelBooking(booking!.id);
           if (error) Alert.alert('Could not cancel', error);
         },
       },
@@ -69,7 +67,7 @@ export default function BookingDetailScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/client/bookings" />
-      <ScrollView contentContainerClassName="gap-4 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         {justBooked === '1' && booking.status === 'pending' && (
           <View className="flex-row items-start gap-3 rounded-card bg-forest-tint p-4">
             <Icon name="check" size={24} color={colors.forest} />
@@ -90,7 +88,7 @@ export default function BookingDetailScreen() {
             onPress={() => router.push({ pathname: '/client/consultant/[id]', params: { id: consultant.id } })}
             accessibilityRole="button"
             className="flex-row items-center gap-3 border-t border-line pt-3 active:opacity-70">
-            <Avatar name={consultant.name} />
+            <Avatar name={consultant.name} uri={consultant.avatarUri} />
             <View className="flex-1">
               <Text className="text-heading text-fg">{consultant.name}</Text>
               <Text className="text-body text-fg-muted">{consultant.title}</Text>

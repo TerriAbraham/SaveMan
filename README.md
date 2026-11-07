@@ -4,7 +4,7 @@ A mobile app for Papua New Guinea that connects **clients** with **verified cons
 
 Built with Expo (React Native) and styled with NativeWind, using a design inspired by the PNG flag (black, red and gold). The logo is a feathered headdress with a tapa-pattern headband.
 
-> **Data note:** logins, passwords and two-step verification are handled by a small **Node.js + Express API in `backend/`** (SQLite database). Everything else (profiles, bookings, messages, reviews) is still **dummy data held in memory** on the phone and resets when the app reloads. See [Limitations](#limitations).
+> **Data note:** all data goes through a **Node.js + Express REST API in `backend/`**, which acts as the app's **mock server**: it starts with the dummy accounts, consultants, bookings, messages and reviews from `src/data/`, and stores changes in SQLite (a local file on your PC, or Turso when hosted online). Every route checks the caller's role. The app keeps a copy **on the phone in SQLite** for offline use, and the login token in **`expo-secure-store`**. See [REST API](#rest-api) and [Limitations](#limitations).
 
 ---
 
@@ -18,13 +18,13 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 - **My bookings:** upcoming and past sessions, booking details, cancel an upcoming booking.
 - **Reviews:** rate a session (1–5 stars + comment) once it has been completed.
 - **Messages and calls:** chat with consultants (with unread badges), or tap Call on a profile or booking to open the phone dialer.
-- **Profile:** edit name, phone and town.
+- **Profile:** edit profile photo (choose from photos or take one), name, phone and town.
 
 ### Consultants
 - **Dashboard:** new requests (accept / decline), sessions ready to mark completed, upcoming sessions, history, earnings and rating.
 - **Services:** add, edit and delete services (name, description, length, price).
 - **Availability:** set working hours per weekday (up to 3 time blocks per day); clients only see free slots inside these hours.
-- **Edit profile:** name, phone, title, category, bio, hourly rate, qualifications and licences, address and map pin (drag the pin or use current location).
+- **Edit profile:** profile photo (choose from photos or take one), name, phone, title, category, bio, hourly rate, qualifications and licences, address and map pin (drag the pin or use current location).
 - **Messages and calls:** reply to clients, or call them from a booking.
 
 ### Security (all roles)
@@ -46,7 +46,7 @@ Built with Expo (React Native) and styled with NativeWind, using a design inspir
 
 ## Requirements
 
-- **Node.js** 22.18+ or 24.3+ (odd-numbered versions such as 23 aren't supported by Expo SDK 58; the API uses Node's built-in SQLite and TypeScript support)
+- **Node.js** 22.18+ or 24.3+ (odd-numbered versions such as 23 aren't supported by Expo SDK 58; the API uses Node's built-in TypeScript support)
 - **Expo Go** app on your phone, the version for **SDK 58** ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779))
 - Your PC and phone on the **same Wi-Fi network** (or use tunnel mode, below)
 
@@ -75,6 +75,58 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:4000   # your PC's address, as printed b
 ```
 
 **Windows:** the first time, allow Node.js through Windows Defender Firewall on *private networks*, or the phone can't reach port 4000.
+
+**Keep it running:** `npm run forever` restarts the API if it ever stops (log in `backend/data/server.log`). On Windows, `npm run autostart` also starts it, hidden, every time you log in; `npm run autostart:remove` undoes that.
+
+## Host the API online (free)
+
+To let anyone use the app, not just phones on your Wi-Fi, host the API on **Render** (free web service) with its data in **Turso** (free online SQLite). A free Render service loses its files on every restart, which is why the database lives in Turso.
+
+1. **Turso:** sign up at [turso.tech](https://turso.tech), create a database, then copy its **URL** (`libsql://…`) and create a **token** for it.
+2. **GitHub:** push this project to a GitHub repository.
+3. **Render:** sign up at [render.com](https://render.com) with GitHub, choose **New → Blueprint** and pick the repository. It reads `render.yaml`, creates `saveman-api` on the free plan, generates `MFA_MASTER_KEY`, and asks for `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. Paste them in.
+4. When it's live, open `https://<your-service>.onrender.com/api/health`. It should show `{"ok":true}`. The first start adds the demo accounts to Turso.
+5. In the project root `.env`, set `EXPO_PUBLIC_API_URL=https://<your-service>.onrender.com` and restart `npx expo start` (or rebuild).
+
+The free service **sleeps after 15 minutes** without requests. The next request wakes it in about a minute, and the app shows *"Waking up the SaveMan server"* meanwhile. Before a demo, open the health link a minute early. Never change `MFA_MASTER_KEY` once set: existing authenticator setups would stop working.
+
+## REST API
+
+The API in `backend/` is the app's mock server: real HTTP routes, filled with the dummy data from `src/data/` on first start. Requests and replies are JSON. Send the session token as `Authorization: Bearer <token>`; routes marked *public* also work without one. Errors come back as `{ "error": { "code", "message" } }` with a matching status: `400` invalid input, `401` not logged in, `403` your role isn't allowed, `404` not found or not yours, `409` conflict (e.g. a slot was just taken).
+
+**Authentication** (`backend/src/app.js`)
+
+| Method | Route | Who | What |
+|---|---|---|---|
+| POST | `/api/auth/register` | public | Create a client or consultant account and profile |
+| POST | `/api/auth/login` | public | Email + password → session, or an MFA step |
+| POST | `/api/auth/mfa/verify` | MFA step | 6-digit or recovery code → session |
+| GET | `/api/auth/me` | signed in | Your full profile |
+| POST | `/api/auth/logout` | signed in | End the session |
+| GET/POST | `/api/mfa/status`, `/setup`, `/enable`, `/recovery-codes`, `/disable` | signed in | Two-step verification settings |
+
+**Data (CRUD)** (`backend/src/resources.js`)
+
+| Method | Route | Who | What |
+|---|---|---|---|
+| GET | `/api/users`, `/api/users/:id` | public | Consultants and reviewers; signed in: also the people you deal with; admin: everyone |
+| PATCH | `/api/users/:id` | owner / admin | Your own profile; an admin sets `status` or `verification` |
+| GET | `/api/users/:id/busy` | signed in | A consultant's booked times (no client details) |
+| GET | `/api/services?consultantId=` | public | A consultant's services |
+| POST, PATCH, DELETE | `/api/services`, `/api/services/:id` | consultant | Manage your own services |
+| GET | `/api/categories` | public | Service categories |
+| POST, PATCH, DELETE | `/api/categories`, `/api/categories/:id` | admin | Manage categories (not ones still in use) |
+| GET | `/api/bookings`, `/api/bookings/:id` | signed in | Your bookings; admin: all |
+| POST | `/api/bookings` | client | Request a session (the slot is re-checked) |
+| PATCH | `/api/bookings/:id` | client / consultant | Client: `cancelled`. Consultant: `confirmed`, `declined`, `completed` |
+| GET | `/api/reviews` | public | Visible reviews; admin: all |
+| POST | `/api/reviews` | client | Review your completed booking, once |
+| PATCH | `/api/reviews/:id` | admin | `{ "removed": true \| false }` to hide or restore |
+| GET | `/api/conversations`, `/api/messages` | signed in | Your conversations and messages |
+| POST | `/api/messages` | client / consultant | Message the other side (creates the conversation) |
+| PATCH | `/api/conversations/:id` | participant | `{ "read": true }` |
+
+Role checks run on the server (`allow('admin')` and ownership checks in `resources.js`), so a modified app can't get around them. The API reuses the app's own rules (`src/utils/booking-rules.ts`, `availability.ts`, `services.ts`, `categories.ts`) through a small loader (`backend/src/ts-paths.js`). Try it in a browser: <http://localhost:4000/api/categories>.
 
 ## Run the app
 
@@ -173,7 +225,7 @@ npm test
 ### How it’s secured
 
 - **TOTP** (RFC 6238: SHA-1, 6 digits, 30-second steps, ±1 step for clock drift), written with Node’s `crypto`. The last accepted step is remembered, so a code can’t be replayed.
-- **Secrets** are encrypted with AES-256-GCM before they’re stored. Set `MFA_MASTER_KEY` (64 hex characters) in production; in development a key is generated in `backend/data/master.key`.
+- **Secrets** are encrypted with AES-256-GCM before they’re stored. Set `MFA_MASTER_KEY` (64 hex or 44 base64 characters) in production; in development a key is generated in `backend/data/master.key`.
 - **Recovery codes** (10, about 49 bits each) are stored only as keyed hashes (HMAC-SHA256), and each works once.
 - **Passwords** are hashed with scrypt. Unknown emails take as long to reject as wrong passwords, with the same error message.
 - **Tokens:** after the password you get a short-lived, single-use MFA token (5 minutes to enter a code, 15 to finish setup), not a session. Sessions last 12 hours, and only token hashes are stored. Changing or turning off MFA signs out your other devices.
@@ -184,7 +236,7 @@ npm test
 ## Project structure
 
 ```
-backend/                Node.js + Express API: accounts, sessions, TOTP MFA (SQLite)
+backend/                Node.js + Express REST API (mock server): auth, MFA, CRUD routes, role checks (SQLite / Turso)
   src/app.js            Routes, rate limits and lockouts
   src/totp.js           TOTP / HOTP and otpauth:// links
   src/security.js       Password hashing, secret encryption, tokens, recovery codes
@@ -218,7 +270,7 @@ Key business rules live in plain functions so they're easy to read and test:
 npx tsc --noEmit     # type check
 npx expo lint        # lint
 npx expo-doctor      # Expo dependency/config check
-cd backend && npm test   # API and MFA tests
+cd backend && npm test   # API, MFA, CRUD and role-check tests
 ```
 
 ## Maps and API keys
@@ -233,9 +285,12 @@ A Google Maps API key is only needed for a standalone **Android** build made wit
 
 ## Limitations
 
-- **Only login is on the server.** Passwords, sessions and MFA live in the API's database. Profiles, bookings, messages, reviews and admin actions (verification, suspension) are still dummy data in memory and reset on reload. An account created in an earlier run still logs in, but starts with an empty profile.
+- **Offline is read-only.** The app reopens logged in (token in `expo-secure-store`) and shows the last data it loaded (SQLite via `expo-sqlite`; browser storage on web). Booking, messaging, reviews and profile changes need the server and show a message when offline; they aren't queued.
+- **Updates every 30 seconds.** New bookings and messages from other phones appear on the next reload (every 30 s, or when the app comes back to the foreground), not instantly.
+- **Profile photos stay on the phone that picked them.** Only the photo's local address is saved, so other phones show initials.
+- To start over with fresh dummy data: stop the API, run `npm run reset` in `backend/`, start it again, and delete the app's data on the phone (or bump `DATA_VERSION` in `src/storage/local-store.ts`).
 - **Demo passwords** are in `src/data/users.ts` so the API can seed the same accounts; the API stores them hashed.
-- **The session is kept in memory only**, so reloading the app logs you out.
-- **The API uses plain HTTP** on your Wi-Fi for development. A real release needs HTTPS, a secret `MFA_MASTER_KEY`, and a shared store (such as Redis) for rate limits if it runs on more than one server.
+- **Sessions last 12 hours.** When the phone is online after that, the app logs out and asks for the password again.
+- **On your PC the API uses plain HTTP** over Wi-Fi. Hosted on Render it gets HTTPS. A real release also needs a secret `MFA_MASTER_KEY`, and a shared store (such as Redis) for rate limits if it runs on more than one server.
 - No payments, notifications, password reset or photo uploads.
 - Designed for light mode only.

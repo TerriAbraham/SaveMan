@@ -48,6 +48,7 @@ export default function MyBookingsScreen() {
           <BookingCard
             booking={item}
             personName={users.find((u) => u.id === item.consultantId)?.name ?? 'Consultant'}
+            personAvatar={users.find((u) => u.id === item.consultantId)?.avatarUri}
             onPress={() => router.push({ pathname: '/client/booking/[id]', params: { id: item.id } })}
             footer={
               user && canReview(item, reviews, user.id) ? (

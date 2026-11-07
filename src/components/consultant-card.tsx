@@ -25,7 +25,7 @@ export function ConsultantCard({
       accessibilityLabel={`${c.name}, ${c.title}, ${c.location.city}`}
       className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4 active:opacity-85">
       <View className="flex-row gap-3">
-        <Avatar name={c.name} />
+        <Avatar name={c.name} uri={c.avatarUri} />
         <View className="flex-1 gap-0.5">
           <View className="flex-row items-center gap-1.5">
             <Text className="shrink text-heading text-fg" numberOfLines={1}>

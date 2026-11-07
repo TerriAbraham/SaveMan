@@ -67,8 +67,7 @@ export default function AdminOverviewScreen() {
                 <Text className="text-label text-fg">{count}</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-sand">
-                {/* Bar width is data, so it stays in style. */}
-                <View className="h-2 rounded-full bg-red" style={{ width: `${Math.round(share * 100)}%` }} />
+                <View className={`h-2 rounded-full bg-red w-pct-${Math.round(share * 100)}`} />
               </View>
             </View>
           );

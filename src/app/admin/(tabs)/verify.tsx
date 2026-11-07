@@ -61,7 +61,7 @@ function ApplicantCard({ consultant: c }: { consultant: Consultant }) {
         accessibilityRole="button"
         accessibilityLabel={`Open ${c.name}`}
         className="flex-row items-center gap-3 active:opacity-70">
-        <Avatar name={c.name} />
+        <Avatar name={c.name} uri={c.avatarUri} />
         <View className="flex-1 gap-1">
           <Text className="text-heading text-fg">{c.name}</Text>
           <Text className="text-body text-fg-muted" numberOfLines={1}>

@@ -38,6 +38,7 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
   const earned = mine.filter((b) => b.status === 'completed').reduce((sum, b) => sum + b.price, 0);
 
   const clientName = (b: Booking) => users.find((u) => u.id === b.clientId)?.name ?? 'Client';
+  const clientAvatar = (b: Booking) => users.find((u) => u.id === b.clientId)?.avatarUri;
   const open = (b: Booking) => router.push({ pathname: '/consultant/booking/[id]', params: { id: b.id } });
 
   return (
@@ -69,7 +70,7 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
             <BookingCard
               key={b.id}
               booking={b}
-              personName={clientName(b)}
+              personName={clientName(b)} personAvatar={clientAvatar(b)}
               onPress={() => open(b)}
               footer={<SmallButton label="Mark completed" icon="check" onPress={() => actions.complete(b)} />}
             />
@@ -82,7 +83,7 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
           <BookingCard
             key={b.id}
             booking={b}
-            personName={clientName(b)}
+            personName={clientName(b)} personAvatar={clientAvatar(b)}
             onPress={() => open(b)}
             footer={
               <View className="flex-row gap-2">
@@ -104,14 +105,14 @@ function Dashboard({ consultant }: { consultant: Consultant }) {
 
       <Section title="Upcoming sessions" empty="No confirmed sessions coming up.">
         {upcoming.map((b) => (
-          <BookingCard key={b.id} booking={b} personName={clientName(b)} onPress={() => open(b)} />
+          <BookingCard key={b.id} booking={b} personName={clientName(b)} personAvatar={clientAvatar(b)} onPress={() => open(b)} />
         ))}
       </Section>
 
       {history.length > 0 && (
         <Section title="Recent history">
           {history.map((b) => (
-            <BookingCard key={b.id} booking={b} personName={clientName(b)} onPress={() => open(b)} />
+            <BookingCard key={b.id} booking={b} personName={clientName(b)} personAvatar={clientAvatar(b)} onPress={() => open(b)} />
           ))}
         </Section>
       )}

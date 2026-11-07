@@ -1,7 +1,6 @@
 import { useRouter, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HeroTexture } from '@/components/brand';
 import { Icon } from '@/components/icon';
@@ -20,10 +19,9 @@ export function ScreenHeader({
   fallbackHref: Href;
 }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-row items-center gap-3 overflow-hidden px-4 pb-3.5" style={{ paddingTop: insets.top + 8 }}>
+    <View className="flex-row items-center gap-3 overflow-hidden px-4 pb-3.5 pt-safe-offset-2">
       <HeroTexture />
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace(fallbackHref))}

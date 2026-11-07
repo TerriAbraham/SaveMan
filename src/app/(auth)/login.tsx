@@ -3,17 +3,19 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { AuthScreen } from '@/components/auth-screen';
+import { Avatar } from '@/components/avatar';
 import { Icon, type IconName } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { seedUsers } from '@/data/users';
 
-// Matches the seeded accounts in src/data/users.ts.
-const demoAccounts: { label: string; icon: IconName; email: string; password: string }[] = [
-  { label: 'Client', icon: 'person', email: 'client@saveman.pg', password: 'client123' },
-  { label: 'Consultant', icon: 'briefcase', email: 'consultant@saveman.pg', password: 'consult123' },
-  { label: 'Admin', icon: 'dashboard', email: 'admin@saveman.pg', password: 'admin123' },
+// One seeded account per role (src/data/users.ts), so each dashboard is a tap away.
+const roleAccounts: { role: string; text: string; icon: IconName; email: string; password: string }[] = [
+  { role: 'Client', text: 'Find, book and message consultants', icon: 'person', email: 'client@saveman.pg', password: 'client123' },
+  { role: 'Consultant', text: 'Manage bookings, services and hours', icon: 'briefcase', email: 'consultant@saveman.pg', password: 'consult123' },
+  { role: 'Admin', text: 'Verify consultants and manage users', icon: 'dashboard', email: 'admin@saveman.pg', password: 'admin123' },
 ];
 
 export default function LoginScreen() {
@@ -25,11 +27,15 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   async function handleLogin() {
-    if (busy) return;
     if (!email.trim() || !password) {
       setError('Enter your email and password.');
       return;
     }
+    await logIn(email, password);
+  }
+
+  async function logIn(email: string, password: string) {
+    if (busy) return;
     setBusy(true);
     setError(null);
     const result = await signIn(email, password);
@@ -79,27 +85,36 @@ export default function LoginScreen() {
         </Pressable>
       </View>
 
-      <View className="mt-2 gap-1 rounded-card bg-gold-tint p-4">
-        <Text className="text-heading text-fg">Demo accounts</Text>
-        <Text className="text-body text-fg-muted">
-          Tap one to fill in its login details. Consultant and admin accounts also need an authenticator app the first time.
-        </Text>
-        <View className="mt-2 flex-row gap-2">
-          {demoAccounts.map((d) => (
-            <Pressable
-              key={d.label}
-              accessibilityRole="button"
-              onPress={() => {
-                setEmail(d.email);
-                setPassword(d.password);
-                setError(null);
-              }}
-              className="flex-1 items-center gap-1 rounded-xl border border-line bg-surface py-3 active:opacity-70">
-              <Icon name={d.icon} size={20} color={colors.ink} />
-              <Text className="text-label text-fg">{d.label}</Text>
-            </Pressable>
-          ))}
+      <View className="mt-2 gap-3">
+        <View className="gap-0.5">
+          <Text className="text-heading text-fg">Continue as</Text>
+          <Text className="text-body text-fg-muted">Pick a role to go straight to its dashboard.</Text>
         </View>
+        {roleAccounts.map((a) => {
+          // From the bundled demo accounts: the server doesn't share emails with logged-out visitors.
+          const account = seedUsers.find((u) => u.email === a.email);
+          return (
+            <Pressable
+              key={a.role}
+              accessibilityRole="button"
+              accessibilityLabel={`Continue as ${a.role}${account ? `, ${account.name}` : ''}`}
+              disabled={busy}
+              onPress={() => logIn(a.email, a.password)}
+              className="flex-row items-center gap-3 rounded-card border border-line/70 bg-surface p-4 shadow-card active:opacity-80">
+              {account ? <Avatar name={account.name} uri={account.avatarUri} /> : <Icon name={a.icon} size={22} color={colors.ink} />}
+              <View className="flex-1 gap-0.5">
+                <View className="flex-row items-center gap-1.5">
+                  <Icon name={a.icon} size={14} color={colors.red} />
+                  <Text className="text-label uppercase tracking-[1px] text-red">{a.role}</Text>
+                </View>
+                <Text className="text-heading text-fg">{account?.name ?? a.role}</Text>
+                <Text className="text-caption text-fg-muted">{a.text}</Text>
+              </View>
+              <Icon name="chevronRight" size={20} color={colors.textMuted} />
+            </Pressable>
+          );
+        })}
+        <Text className="text-caption text-fg-muted">Consultant and admin accounts ask for an authenticator code.</Text>
       </View>
     </AuthScreen>
   );

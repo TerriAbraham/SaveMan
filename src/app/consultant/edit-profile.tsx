@@ -2,9 +2,9 @@ import * as ExpoLocation from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationPicker } from '@/components/maps/location-picker';
+import { ProfilePhotoPicker } from '@/components/profile-photo-picker';
 import { QualificationList } from '@/components/qualification-list';
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
@@ -28,12 +28,12 @@ export default function EditProfileScreen() {
 
 function EditProfileForm({ consultant }: { consultant: Consultant }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { updateConsultant, updateOwnProfile } = useAuth();
   const { categories } = useData();
 
   const [name, setName] = useState(consultant.name);
   const [phone, setPhone] = useState(consultant.phone);
+  const [photo, setPhoto] = useState(consultant.avatarUri);
   const [categoryId, setCategoryId] = useState(consultant.categoryId);
   const [title, setTitle] = useState(consultant.title);
   const [bio, setBio] = useState(consultant.bio);
@@ -46,6 +46,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
   const [qualifications, setQualifications] = useState(consultant.qualifications);
   const [draft, setDraft] = useState(emptyDraft);
   const [mapActive, setMapActive] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [errors, setErrors] = useState<{
     contact?: string;
@@ -107,7 +108,8 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     setDraft(emptyDraft);
   }
 
-  function save() {
+  async function save() {
+    if (saving) return;
     const next: typeof errors = {};
     const hourlyRate = Number(rate);
     if (title.trim().length < 3) next.title = 'Enter your professional title.';
@@ -123,12 +125,14 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const contactError = updateOwnProfile({ name, phone });
+    setSaving(true);
+    const contactError = await updateOwnProfile({ name, phone, avatarUri: photo ?? null });
     if (contactError) {
+      setSaving(false);
       setErrors({ contact: contactError });
       return;
     }
-    updateConsultant({
+    const profileError = await updateConsultant({
       title: title.trim(),
       categoryId,
       bio: bio.trim(),
@@ -136,6 +140,11 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
       qualifications,
       location: { ...centre, address: address.trim(), latitude: pin.latitude, longitude: pin.longitude },
     });
+    setSaving(false);
+    if (profileError) {
+      Alert.alert('Could not save your profile', profileError);
+      return;
+    }
     router.back();
   }
 
@@ -145,8 +154,8 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
       <ScrollView
         scrollEnabled={!mapActive}
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 p-4"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
+        <ProfilePhotoPicker name={name} uri={photo} onChange={(uri) => setPhoto(uri ?? undefined)} />
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">Contact</Text>
           <TextField label="Full name" icon="person" value={name} onChangeText={setName} autoComplete="name" />
@@ -277,7 +286,7 @@ function EditProfileForm({ consultant }: { consultant: Consultant }) {
           <Button title="Use my current location" variant="outline" loading={locating} onPress={useCurrentLocation} />
         </View>
 
-        <Button title="Save changes" onPress={save} />
+        <Button title="Save changes" onPress={save} loading={saving} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

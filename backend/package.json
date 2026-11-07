@@ -8,12 +8,16 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning src/server.js",
-    "dev": "node --watch --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
-    "reset": "node src/reset.js"
+    "start": "node --import ./src/ts-paths.js --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --import ./src/ts-paths.js --watch --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --import ./src/ts-paths.js --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\"",
+    "reset": "node src/reset.js",
+    "forever": "node src/supervise.js",
+    "autostart": "node src/autostart.js",
+    "autostart:remove": "node src/autostart.js remove"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.3",
     "qrcode": "^1.5.4"

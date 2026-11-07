@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import type { Category } from '@/data/types';
 
 /** Admin: create, rename and delete the service categories clients filter by. */
 export default function CategoriesScreen() {
-  const insets = useSafeAreaInsets();
   const { users } = useAuth();
   const { categories, saveCategory, deleteCategory } = useData();
 
@@ -21,6 +19,7 @@ export default function CategoriesScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const usage = (id: string) => users.filter((u) => u.role === 'consultant' && u.categoryId === id).length;
 
@@ -38,8 +37,11 @@ export default function CategoriesScreen() {
     setError(null);
   }
 
-  function save() {
-    const result = saveCategory({ name, description }, editingId);
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    const result = await saveCategory({ name, description }, editingId);
+    setBusy(false);
     if (result) {
       setError(result);
       return;
@@ -53,8 +55,8 @@ export default function CategoriesScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          const result = deleteCategory(c.id);
+        onPress: async () => {
+          const result = await deleteCategory(c.id);
           if (result) Alert.alert('Can’t delete category', result);
           else if (editingId === c.id) resetForm();
         },
@@ -67,8 +69,7 @@ export default function CategoriesScreen() {
       <ScreenHeader title="Categories" subtitle="Service areas clients can filter by" fallbackHref="/admin" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 p-4"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <Text className="text-heading text-fg">{editingId ? 'Edit category' : 'Add a category'}</Text>
           <TextField
@@ -89,7 +90,7 @@ export default function CategoriesScreen() {
             maxLength={80}
           />
           {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
-          <Button title={editingId ? 'Save changes' : 'Add category'} onPress={save} />
+          <Button title={editingId ? 'Save changes' : 'Add category'} onPress={save} loading={busy} />
           {editingId && <Button title="Cancel editing" variant="ghost" onPress={resetForm} />}
         </View>
 

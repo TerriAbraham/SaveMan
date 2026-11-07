@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icon';
 import { colors } from '@/constants/theme';
@@ -12,7 +11,6 @@ const TIMES = Array.from({ length: 33 }, (_, i) => fromMinutes(6 * 60 + i * 30))
 /** A button showing a time; tapping opens a bottom sheet of half-hour options. */
 export function TimeSelect({ label, value, onChange }: { label: string; value: string; onChange: (time: string) => void }) {
   const [open, setOpen] = useState(false);
-  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -30,7 +28,7 @@ export function TimeSelect({ label, value, onChange }: { label: string; value: s
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <Pressable className="flex-1 bg-ink/50" onPress={() => setOpen(false)} accessibilityLabel="Close" />
-        <View className="max-h-[60%] rounded-t-card bg-surface" style={{ paddingBottom: insets.bottom + 8 }}>
+        <View className="max-h-[60%] rounded-t-card bg-surface pb-safe-offset-2">
           <Text className="border-b border-line p-4 text-center text-heading text-fg">{label}</Text>
           <ScrollView contentContainerClassName="p-2">
             {TIMES.map((t) => {

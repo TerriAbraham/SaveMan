@@ -21,7 +21,7 @@ export function getSlots(
   consultant: Consultant,
   date: string,
   durationMins: number,
-  bookings: Booking[],
+  bookings: Pick<Booking, 'consultantId' | 'date' | 'time' | 'durationMins' | 'status'>[],
   now: Date = new Date(),
 ): Slot[] {
   const weekday = fromISODate(date).getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;

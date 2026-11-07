@@ -57,7 +57,7 @@ export default function AdminUsersScreen() {
             onPress={() => router.push({ pathname: '/admin/user/[id]', params: { id: item.id } })}
             accessibilityRole="button"
             className={`flex-row items-center gap-3 rounded-card border bg-surface p-3 active:opacity-85 ${item.status === 'suspended' ? 'border-red' : 'border-line'}`}>
-            <Avatar name={item.name} size="sm" />
+            <Avatar name={item.name} uri={item.avatarUri} size="sm" />
             <View className="flex-1 gap-1">
               <Text className="text-[15px] font-bold text-fg" numberOfLines={1}>
                 {item.name}

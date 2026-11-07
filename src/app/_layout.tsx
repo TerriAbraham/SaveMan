@@ -1,4 +1,5 @@
 import '@/global.css';
+import '@/nativewind-interop';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

@@ -29,15 +29,3 @@ export function validateService(draft: ServiceDraft, services: Service[], editin
 
   return errors;
 }
-
-/** Applies a valid draft: replaces the service being edited, or appends a new one. */
-export function upsertService(services: Service[], draft: ServiceDraft, editingId: string | null, newId: string): Service[] {
-  const service: Service = {
-    id: editingId ?? newId,
-    name: draft.name.trim(),
-    description: draft.description.trim(),
-    durationMins: draft.durationMins,
-    price: Number(draft.price),
-  };
-  return editingId ? services.map((s) => (s.id === editingId ? service : s)) : [...services, service];
-}

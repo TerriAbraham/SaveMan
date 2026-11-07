@@ -35,7 +35,7 @@ export function AccountSummary({ children }: { children?: ReactNode }) {
       <View className="overflow-hidden rounded-card border border-line/70 bg-surface shadow-card">
         <View className="items-center gap-1 overflow-hidden p-6">
           <HeroTexture />
-          <Avatar name={user.name} size="lg" />
+          <Avatar name={user.name} uri={user.avatarUri} size="lg" />
           <Text className="mt-2 text-title text-on-dark">{user.name}</Text>
           <Text className="text-body text-on-dark-muted">{roleLabels[user.role]}</Text>
           {verification && (
@@ -45,7 +45,7 @@ export function AccountSummary({ children }: { children?: ReactNode }) {
             </View>
           )}
         </View>
-        <PatternBand height={8} count={40} />
+        <PatternBand size="sm" />
         <View className="gap-3 p-4">
           <Row icon="mail" text={user.email} />
           <Row icon="phone" text={user.phone} />

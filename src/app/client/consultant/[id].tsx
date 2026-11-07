@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { HeroTexture, PatternBand } from '@/components/brand';
@@ -23,7 +22,6 @@ export default function ConsultantProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const consultant = usePublicConsultant(id);
-  const insets = useSafeAreaInsets();
 
   if (!consultant) {
     return (
@@ -46,12 +44,12 @@ export default function ConsultantProfileScreen() {
 
   return (
     <View className="flex-1 bg-sand">
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}>
+      <ScrollView contentContainerClassName="pb-safe-offset-[110px]">
         <View className="overflow-hidden px-6 pb-6">
           <HeroTexture />
           <TopBar />
           <View className="items-center gap-1.5">
-            <Avatar name={c.name} size="lg" />
+            <Avatar name={c.name} uri={c.avatarUri} size="lg" />
             <Text className="mt-2 text-center text-title text-on-dark">{c.name}</Text>
             <Text className="text-center text-body text-on-dark-muted">{c.title}</Text>
             <View className="mt-1 flex-row items-center gap-1">
@@ -74,7 +72,7 @@ export default function ConsultantProfileScreen() {
             </Stat>
           </View>
         </View>
-        <PatternBand height={10} count={40} />
+        <PatternBand size="md" />
 
         <View className="gap-4 p-4">
           <Section title="About">
@@ -132,8 +130,7 @@ export default function ConsultantProfileScreen() {
 
       {/* Sticky booking bar */}
       <View
-        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-3 border-t border-line bg-surface px-4 pt-3"
-        style={{ paddingBottom: insets.bottom + 12 }}>
+        className="absolute bottom-0 left-0 right-0 flex-row items-center gap-3 border-t border-line bg-surface px-4 pt-3 pb-safe-offset-3">
         <View>
           <Text className="text-caption text-fg-muted">Sessions from</Text>
           <Text className="text-title text-fg">{formatKina(startingPrice)}</Text>
@@ -165,9 +162,8 @@ export default function ConsultantProfileScreen() {
 
 function TopBar() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   return (
-    <View className="mb-4 flex-row" style={{ paddingTop: insets.top + 8 }}>
+    <View className="mb-4 flex-row pt-safe-offset-2">
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace('/client'))}
         hitSlop={12}
@@ -222,7 +218,7 @@ function ReviewsSection({ consultantId, rating, reviewCount }: { consultantId: s
           <View key={r.id} className={`gap-1.5 ${i > 0 ? 'border-t border-line pt-3' : ''}`}>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
-                <Avatar name={r.reviewerName} size="sm" />
+                <Avatar name={r.reviewerName} uri={r.reviewerAvatar} size="sm" />
                 <View>
                   <Text className="text-label text-fg">{r.reviewerName}</Text>
                   <Text className="text-caption text-fg-muted">{formatDate(r.createdAt)}</Text>

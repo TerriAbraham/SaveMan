@@ -21,5 +21,8 @@ export function useConsultantReviews(consultantId: string) {
   return reviews
     .filter((r) => r.consultantId === consultantId && !r.removedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((r) => ({ ...r, reviewerName: users.find((u) => u.id === r.clientId)?.name ?? 'SaveMan client' }));
+    .map((r) => {
+      const reviewer = users.find((u) => u.id === r.clientId);
+      return { ...r, reviewerName: reviewer?.name ?? 'SaveMan client', reviewerAvatar: reviewer?.avatarUri };
+    });
 }

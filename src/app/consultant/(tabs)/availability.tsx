@@ -23,6 +23,7 @@ function AvailabilityEditor({ consultant }: { consultant: Consultant }) {
   const { updateConsultant } = useAuth();
   const [week, setWeek] = useState<WeeklyAvailability>(consultant.availability);
   const [errors, setErrors] = useState<Partial<Record<Weekday, string>>>({});
+  const [busy, setBusy] = useState(false);
 
   const dirty = JSON.stringify(normalizeAvailability(week)) !== JSON.stringify(normalizeAvailability(consultant.availability));
 
@@ -31,12 +32,15 @@ function AvailabilityEditor({ consultant }: { consultant: Consultant }) {
     setErrors((e) => ({ ...e, [day]: undefined }));
   }
 
-  function save() {
+  async function save() {
     const next = validateAvailability(week);
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    updateConsultant({ availability: normalizeAvailability(week) });
-    Alert.alert('Availability saved', 'Clients will only see times inside these hours.');
+    if (Object.keys(next).length > 0 || busy) return;
+    setBusy(true);
+    const error = await updateConsultant({ availability: normalizeAvailability(week) });
+    setBusy(false);
+    if (error) Alert.alert('Could not save availability', error);
+    else Alert.alert('Availability saved', 'Clients will only see times inside these hours.');
   }
 
   return (
@@ -110,7 +114,7 @@ function AvailabilityEditor({ consultant }: { consultant: Consultant }) {
       </ScrollView>
 
       <View className="border-t border-line bg-surface p-4">
-        <Button title={dirty ? 'Save availability' : 'No changes'} disabled={!dirty} onPress={save} />
+        <Button title={dirty ? 'Save availability' : 'No changes'} disabled={!dirty} onPress={save} loading={busy} />
       </View>
     </View>
   );

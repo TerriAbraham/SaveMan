@@ -1,0 +1,36 @@
+# Render Blueprint for the SaveMan API (backend/). In Render: New > Blueprint, pick this repo.
+# Free plan: sleeps after 15 minutes without requests and takes about a minute to wake up.
+# Data lives in Turso (online SQLite), because a free Render service loses its files on every restart.
+services:
+  - type: web
+    name: saveman-api
+    runtime: node
+    plan: free
+    region: singapore # closest region to Papua New Guinea
+    # No rootDir: the API reuses the app's dummy data and booking rules from src/data and src/utils.
+    buildCommand: cd backend && npm ci
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    buildFilter:
+      paths:
+        - backend/**
+        - src/data/**
+        - src/utils/**
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      # Booking times are PNG local time; Render's clock is UTC otherwise.
+      - key: TZ
+        value: Pacific/Port_Moresby
+      # Encrypts MFA secrets. Generated once by Render; never change it or authenticator setups stop working.
+      - key: MFA_MASTER_KEY
+        generateValue: true
+      # From the Turso dashboard: the database URL (libsql://...) and a token for it. Render asks for these once.
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

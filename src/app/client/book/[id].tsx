@@ -1,8 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { dataApi, type BusyTime } from '@/api/data-api';
 import { modeMeta } from '@/components/booking-card';
 import { Icon } from '@/components/icon';
 import { ScreenHeader } from '@/components/screen-header';
@@ -23,10 +23,13 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export default function BookSessionScreen() {
   const { id, service } = useLocalSearchParams<{ id: string; service?: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { bookings, createBooking } = useData();
   const consultant = usePublicConsultant(id);
+  // Times other clients have booked: the app only holds this client's own bookings.
+  const [busy, setBusy] = useState<BusyTime[]>([]);
+  const [busyVersion, setBusyVersion] = useState(0); // bump to reload busy times
+  const [saving, setSaving] = useState(false);
 
   // `service` is a service id from the profile page; fall back to the first service.
   const [serviceId, setServiceId] = useState<string | null>(service ?? null);
@@ -35,6 +38,19 @@ export default function BookSessionScreen() {
   const [time, setTime] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const consultantId = consultant?.id;
+  useEffect(() => {
+    if (!token || !consultantId) return;
+    let current = true;
+    dataApi.users
+      .busy(token, consultantId)
+      .then((times) => current && setBusy(times))
+      .catch(() => {}); // offline: the server still checks the slot when booking
+    return () => {
+      current = false;
+    };
+  }, [token, consultantId, busyVersion]);
 
   if (!consultant || !user || consultant.services.length === 0) {
     return (
@@ -48,17 +64,18 @@ export default function BookSessionScreen() {
   }
 
   const selectedService = consultant.services.find((s) => s.id === serviceId) ?? consultant.services[0];
+  const taken = [...bookings, ...busy];
   const today = new Date();
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => {
     const iso = toISODate(addDays(today, i));
     const open =
       worksOn(consultant, iso) &&
-      getSlots(consultant, iso, selectedService.durationMins, bookings).some((s) => s.available);
+      getSlots(consultant, iso, selectedService.durationMins, taken).some((s) => s.available);
     return { iso, open };
   });
   // Default to the first day with a free slot.
   const date = pickedDate ?? days.find((d) => d.open)?.iso ?? days[0].iso;
-  const slots = getSlots(consultant, date, selectedService.durationMins, bookings);
+  const slots = getSlots(consultant, date, selectedService.durationMins, taken);
   const timeStillFree = time !== null && slots.some((s) => s.time === time && s.available);
 
   function chooseService(id: string) {
@@ -73,12 +90,15 @@ export default function BookSessionScreen() {
     setError(null);
   }
 
-  function confirm() {
-    if (!consultant || !time || !timeStillFree) return;
-    const result = createBooking({ consultantId: consultant.id, serviceId: selectedService.id, date, time, mode, note });
+  async function confirm() {
+    if (!consultant || !time || !timeStillFree || saving) return;
+    setSaving(true);
+    const result = await createBooking({ consultantId: consultant.id, serviceId: selectedService.id, date, time, mode, note });
+    setSaving(false);
     if (result.error !== undefined) {
       setError(result.error);
       setTime(null);
+      setBusyVersion((v) => v + 1); // someone may have just taken that time
       return;
     }
     router.replace({ pathname: '/client/booking/[id]', params: { id: result.booking.id, justBooked: '1' } });
@@ -207,7 +227,7 @@ export default function BookSessionScreen() {
         </Step>
       </ScrollView>
 
-      <View className="gap-2 border-t border-line bg-surface px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
+      <View className="gap-2 border-t border-line bg-surface px-4 pt-3 pb-safe-offset-3">
         {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
         <Text className="text-caption text-fg-muted" numberOfLines={1}>
           {time && timeStillFree
@@ -218,6 +238,7 @@ export default function BookSessionScreen() {
           title={`Request booking · ${formatKina(selectedService.price)}`}
           onPress={confirm}
           disabled={!timeStillFree}
+          loading={saving}
         />
       </View>
     </KeyboardAvoidingView>

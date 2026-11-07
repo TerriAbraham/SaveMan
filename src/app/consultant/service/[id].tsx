@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { TextField } from '@/components/ui/text-field';
 import { useAuth } from '@/context/auth-context';
 import type { Consultant, Service } from '@/data/types';
 import { formatDuration } from '@/utils/format';
-import { DURATION_OPTIONS, upsertService, validateService, type ServiceDraft, type ServiceErrors } from '@/utils/services';
+import { DURATION_OPTIONS, validateService, type ServiceDraft, type ServiceErrors } from '@/utils/services';
 
 /** Add (`id` = "new") or edit one of the signed-in consultant's services. */
 export default function ServiceEditorScreen() {
@@ -34,8 +33,8 @@ export default function ServiceEditorScreen() {
 
 function ServiceForm({ consultant, existing }: { consultant: Consultant; existing: Service | null }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { updateConsultant } = useAuth();
+  const { saveService, deleteService } = useAuth();
+  const [busy, setBusy] = useState(false);
 
   const [draft, setDraft] = useState<ServiceDraft>({
     name: existing?.name ?? '',
@@ -50,14 +49,18 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
 
-  function save() {
+  async function save() {
     const next = validateService(draft, consultant.services, existing?.id ?? null);
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    updateConsultant({
-      services: upsertService(consultant.services, draft, existing?.id ?? null, `s-new-${Date.now()}`),
-    });
-    router.back();
+    if (Object.keys(next).length > 0 || busy) return;
+    setBusy(true);
+    const error = await saveService(
+      { name: draft.name.trim(), description: draft.description.trim(), durationMins: draft.durationMins, price: Number(draft.price) },
+      existing?.id ?? null,
+    );
+    setBusy(false);
+    if (error) Alert.alert('Could not save service', error);
+    else router.back();
   }
 
   function confirmDelete() {
@@ -73,9 +76,10 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            updateConsultant({ services: consultant.services.filter((s) => s.id !== existing.id) });
-            router.back();
+          onPress: async () => {
+            const error = await deleteService(existing.id);
+            if (error) Alert.alert('Could not delete service', error);
+            else router.back();
           },
         },
       ],
@@ -87,8 +91,7 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
       <ScreenHeader title={existing ? 'Edit service' : 'New service'} fallbackHref="/consultant/services" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 p-4"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         <View className="gap-4 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <TextField
             label="Service name"
@@ -127,7 +130,7 @@ function ServiceForm({ consultant, existing }: { consultant: Consultant; existin
           />
         </View>
 
-        <Button title={existing ? 'Save changes' : 'Add service'} onPress={save} />
+        <Button title={existing ? 'Save changes' : 'Add service'} onPress={save} loading={busy} />
         {existing && <Button title="Delete service" variant="ghost" onPress={confirmDelete} />}
       </ScrollView>
     </KeyboardAvoidingView>

@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
@@ -19,12 +18,12 @@ const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 export default function LeaveReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, users } = useAuth();
   const { bookings, reviews, addReview } = useData();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const booking = bookings.find((b) => b.id === id);
   const consultant = users.find((u) => u.id === booking?.consultantId);
@@ -43,13 +42,15 @@ export default function LeaveReviewScreen() {
     );
   }
 
-  function submit() {
-    if (!booking || !user) return;
+  async function submit() {
+    if (!booking || !user || busy) return;
     if (rating === 0) {
       setError('Tap the stars to choose a rating.');
       return;
     }
-    const result = addReview({ bookingId: booking.id, rating, comment });
+    setBusy(true);
+    const result = await addReview({ bookingId: booking.id, rating, comment });
+    setBusy(false);
     if (result) {
       setError(result);
       return;
@@ -62,10 +63,9 @@ export default function LeaveReviewScreen() {
       <ScreenHeader title="Leave a review" subtitle={booking.serviceName} fallbackHref="/client/bookings" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 p-4"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         <View className="items-center gap-2 rounded-card border border-line/70 bg-surface shadow-card p-6">
-          <Avatar name={consultant.name} size="lg" />
+          <Avatar name={consultant.name} uri={consultant.avatarUri} size="lg" />
           <Text className="mt-1 text-heading text-fg">{consultant.name}</Text>
           <Text className="text-body text-fg-muted">
             {booking.serviceName} · {formatDate(booking.date)}
@@ -109,7 +109,7 @@ export default function LeaveReviewScreen() {
 
         {error && <Text className="overflow-hidden rounded-lg bg-red-tint p-3 text-label text-red-dark">{error}</Text>}
 
-        <Button title="Post review" onPress={submit} />
+        <Button title="Post review" onPress={submit} loading={busy} />
         <Text className="text-center text-caption text-fg-muted">
           Reviews show your name and appear on {consultant.name}&apos;s profile.
         </Text>

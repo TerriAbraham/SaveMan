@@ -57,8 +57,7 @@ export function AuthenticatorSetup({ setup, onConfirm }: { setup: MfaSetupData; 
 
       <Step number={2} title="Add your SaveMan account">
         <View className="items-center rounded-xl border border-line bg-white p-3">
-          {/* Fixed pixel size for the QR image, so it stays in style. */}
-          <Image source={{ uri: setup.qrDataUrl }} style={{ width: 200, height: 200 }} contentFit="contain" accessibilityLabel="QR code for your authenticator app" />
+          <Image source={{ uri: setup.qrDataUrl }} className="h-[200px] w-[200px]" contentFit="contain" accessibilityLabel="QR code for your authenticator app" />
         </View>
         <Text className="text-caption text-fg-muted">
           Scan the QR code with the authenticator app on another device. On this phone, open the app directly or enter the key by

@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { modeMeta } from '@/components/booking-card';
@@ -29,7 +28,6 @@ const consultantExplain = {
 export default function ConsultantBookingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user, users } = useAuth();
   const { bookings, reviews } = useData();
   const actions = useBookingActions();
@@ -55,14 +53,14 @@ export default function ConsultantBookingScreen() {
   return (
     <View className="flex-1 bg-sand">
       <ScreenHeader title="Booking details" subtitle={booking.serviceName} fallbackHref="/consultant" />
-      <ScrollView contentContainerClassName="gap-4 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4 pb-safe-offset-6">
         <View className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4">
           <BookingStatusPill status={booking.status} started={hasStarted(booking)} />
           <Text className="text-body text-fg-muted">
             {confirmedNotStarted ? 'Confirmed. You can mark it completed once the session starts.' : consultantExplain[booking.status]}
           </Text>
           <View className="flex-row items-center gap-3 border-t border-line pt-3">
-            <Avatar name={client.name} />
+            <Avatar name={client.name} uri={client.avatarUri} />
             <View className="flex-1">
               <Text className="text-heading text-fg">{client.name}</Text>
               <Text className="text-body text-fg-muted">

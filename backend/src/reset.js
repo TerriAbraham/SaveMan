@@ -1,4 +1,5 @@
-// Deletes the database so the next start re-seeds the demo accounts (MFA off for everyone).
+// Deletes the local database so the next start re-seeds the demo accounts (MFA off for everyone).
+// A Turso database isn't touched: delete and recreate it from the Turso dashboard instead.
 import { rmSync } from 'node:fs';
 
 import { DB_PATH } from './config.js';

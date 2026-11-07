@@ -19,11 +19,13 @@ export const modeMeta: Record<Booking['mode'], { label: string; icon: IconName }
 export function BookingCard({
   booking,
   personName,
+  personAvatar,
   onPress,
   footer,
 }: {
   booking: Booking;
   personName: string;
+  personAvatar?: string;
   onPress: () => void;
   /** Extra content under the status, e.g. action buttons. */
   footer?: ReactNode;
@@ -36,7 +38,7 @@ export function BookingCard({
       accessibilityLabel={`${booking.serviceName} with ${personName}, ${formatDate(booking.date)}`}
       className="gap-3 rounded-card border border-line/70 bg-surface shadow-card p-4 active:opacity-85">
       <View className="flex-row items-center gap-3">
-        <Avatar name={personName} size="sm" />
+        <Avatar name={personName} uri={personAvatar} size="sm" />
         <View className="flex-1">
           <Text className="text-[15px] font-bold text-fg" numberOfLines={1}>
             {booking.serviceName}

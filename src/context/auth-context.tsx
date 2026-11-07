@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import {
   ApiError,
@@ -12,9 +12,11 @@ import {
   type MfaVerifyResponse,
   type SecondFactor,
 } from '@/api/auth-api';
-import { places, seedUsers, standardWeek } from '@/data/users';
-import type { AccountStatus, Client, Consultant, User, VerificationStatus } from '@/data/types';
-import { adjustAverage } from '@/utils/ratings';
+import { dataApi, type ServiceInput } from '@/api/data-api';
+import { seedUsers } from '@/data/users';
+import type { AccountStatus, Consultant, User, VerificationStatus } from '@/data/types';
+import { useSavedState } from '@/hooks/use-saved-state';
+import { loadSession, saveSession } from '@/storage/local-store';
 export interface SignUpInput {
   role: 'client' | 'consultant';
   name: string;
@@ -27,9 +29,9 @@ export interface SignUpInput {
   categoryId?: string;
 }
 
-/** Fields a consultant can change themselves: profile, services and availability. */
+/** Fields a consultant can change themselves: profile and availability. Services have their own routes. */
 export type ConsultantProfileChanges = Partial<
-  Pick<Consultant, 'title' | 'categoryId' | 'bio' | 'hourlyRate' | 'location' | 'qualifications' | 'services' | 'availability'>
+  Pick<Consultant, 'title' | 'categoryId' | 'bio' | 'hourlyRate' | 'location' | 'qualifications' | 'availability'>
 >;
 
 /** Contact details any user can change. `city` applies to clients only. */
@@ -37,6 +39,8 @@ export interface OwnProfileChanges {
   name: string;
   phone: string;
   city?: string;
+  /** New profile photo, or null to remove it. Leave out to keep the current one. */
+  avatarUri?: string | null;
 }
 
 /** Where to go after a password: signed in, or one of the MFA screens. */
@@ -57,10 +61,17 @@ interface Session {
 
 interface AuthContextValue {
   user: User | null;
+  /** Accounts this user may see (from the server, cached on the device). */
   users: User[];
+  /** Session token for the data API, or null when logged out. */
+  token: string | null;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
   signOut: () => void;
+  /** Reloads `users` from the server. Throws ApiError, e.g. when offline. */
+  refreshUsers: () => Promise<void>;
+  /** Reloads one user (e.g. a consultant whose rating changed). */
+  refreshUser: (id: string) => Promise<void>;
 
   // Multi-factor authentication. These throw ApiError; show it with errorMessage().
   pendingMfa: PendingMfa | null;
@@ -77,72 +88,88 @@ interface AuthContextValue {
   regenerateRecoveryCodes: (code: string) => Promise<string[]>;
   disableMfa: (password: string, factor: SecondFactor) => Promise<void>;
 
-  /** Signed-in consultant only. Returns an error message, or null on success. */
-  updateConsultant: (changes: ConsultantProfileChanges) => string | null;
-  /** Signed-in user's name, phone (and city for clients). Returns an error message, or null. */
-  updateOwnProfile: (changes: OwnProfileChanges) => string | null;
-  adjustRating: (consultantId: string, rating: number, change: 1 | -1) => void;
-  /** Admin only. Returns an error message, or null on success. */
-  setVerification: (consultantId: string, verification: VerificationStatus) => string | null;
-  /** Admin only. Returns an error message, or null on success. */
-  setAccountStatus: (userId: string, status: AccountStatus) => string | null;
+  // These resolve to an error message for the screen to show, or null on success.
+
+  /** Signed-in consultant only. */
+  updateConsultant: (changes: ConsultantProfileChanges) => Promise<string | null>;
+  /** Signed-in user's name, phone, photo (and city for clients). */
+  updateOwnProfile: (changes: OwnProfileChanges) => Promise<string | null>;
+  /** Signed-in consultant adds (editingId null) or edits one of their services. */
+  saveService: (input: ServiceInput, editingId: string | null) => Promise<string | null>;
+  deleteService: (serviceId: string) => Promise<string | null>;
+  /** Admin only. */
+  setVerification: (consultantId: string, verification: VerificationStatus) => Promise<string | null>;
+  /** Admin only. Suspending also signs the user out on the server. */
+  setAccountStatus: (userId: string, status: AccountStatus) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const SUSPENDED = 'This account has been suspended. Contact SaveMan support.';
 const noSession = () => new ApiError('Please log in again.', 'unauthorized', 401);
 
-/** A new account's in-memory profile. Consultants start unverified with an empty profile. */
-function buildProfile(id: string, input: Omit<SignUpInput, 'password'>): User {
-  const base = {
-    id,
-    name: input.name.trim(),
-    email: input.email.trim().toLowerCase(),
-    password: '', // the password lives only on the server, hashed
-    phone: input.phone.trim(),
-    status: 'active' as const,
-    createdAt: new Date().toISOString().slice(0, 10),
-  };
-  if (input.role === 'client') return { ...base, role: 'client', city: input.city } satisfies Client;
-
-  // Start at the chosen town centre; the consultant can set their exact office pin later.
-  const place = Object.values(places).find((p) => p.city === input.city) ?? places.portMoresby;
-  return {
-    ...base,
-    role: 'consultant',
-    title: input.title?.trim() ?? '',
-    categoryId: input.categoryId ?? '',
-    bio: '',
-    expertise: [],
-    qualifications: [],
-    services: [],
-    availability: standardWeek,
-    hourlyRate: 0,
-    yearsExperience: 0,
-    languages: ['English'],
-    location: { ...place, address: '' },
-    verification: 'pending', // new consultants wait for admin approval
-    rating: 0,
-    reviewCount: 0,
-  } satisfies Consultant;
-}
-
-// Passwords, sessions and MFA are checked by the SaveMan API (backend/). Profiles, bookings and
-// the rest are still in-memory only: accounts created at sign-up reset here when the app reloads.
+// Passwords, sessions, MFA, profiles and admin actions go through the SaveMan API (backend/), which
+// checks each caller's role. Accounts are cached on this device (SQLite) and the session is kept in
+// secure storage, so the app reopens logged in and the saved data stays usable offline.
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<User[]>(seedUsers);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [users, setUsers] = useSavedState<User[]>('users', seedUsers);
+  const [saved] = useState(loadSession);
+  const [userId, setUserId] = useState<string | null>(saved?.userId ?? null);
+  const [session, setSession] = useState<Session | null>(
+    saved && { token: saved.token, mfaEnabled: saved.mfaEnabled, mfaRequired: saved.mfaRequired },
+  );
   const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
 
   const user = users.find((u) => u.id === userId) ?? null;
+  const token = session?.token ?? null;
+
+  useEffect(() => {
+    saveSession(session && userId ? { userId, ...session } : null);
+  }, [session, userId]);
+
+  // A reopened session is checked with the server when online. Offline, it's kept so the saved data
+  // stays usable; a session the server rejects (expired, suspended) logs out.
+  useEffect(() => {
+    if (!saved) return;
+    authApi
+      .mfaStatus(saved.token)
+      .then((status) => setSession((s) => (s?.token === saved.token ? { ...s, mfaEnabled: status.enabled } : s)))
+      .catch((err) => {
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          setSession((s) => (s?.token === saved.token ? null : s));
+          setUserId((id) => (id === saved.userId ? null : id));
+        }
+      });
+  }, [saved]);
+
+  const replaceUser = useCallback(
+    (updated: User) => setUsers((prev) => (prev.some((u) => u.id === updated.id) ? prev.map((u) => (u.id === updated.id ? updated : u)) : [...prev, updated])),
+    [setUsers],
+  );
+
+  /** Fetches the accounts this user may see. Throws ApiError (e.g. when offline). */
+  const refreshUsers = useCallback(async () => {
+    const list = await dataApi.users.list(token);
+    // Keep the signed-in profile if the server didn't send it (it always should).
+    setUsers((prev) => {
+      const me = prev.find((u) => u.id === userId);
+      return me && !list.some((u) => u.id === me.id) ? [...list, me] : list;
+    });
+  }, [token, userId, setUsers]);
+
+  const refreshUser = useCallback(
+    async (id: string) => {
+      try {
+        replaceUser(await dataApi.users.get(token, id));
+      } catch {}
+    },
+    [token, replaceUser],
+  );
 
   /** Session token, or the enrolment token while a required-MFA user sets up their authenticator. */
   function setupToken() {
-    const token = pendingMfa?.kind === 'setup' ? pendingMfa.mfaToken : session?.token;
-    if (!token) throw noSession();
-    return token;
+    const t = pendingMfa?.kind === 'setup' ? pendingMfa.mfaToken : session?.token;
+    if (!t) throw noSession();
+    return t;
   }
 
   function sessionToken() {
@@ -150,18 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return session.token;
   }
 
-  function afterPassword(res: LoginResponse, profile?: User): AuthResult {
-    const token = res.status === 'ok' ? res.token : res.mfaToken;
-    // Suspension is managed by the admin screens in the app, so it's checked here too.
-    if (users.find((u) => u.id === res.user.id)?.status === 'suspended') {
-      authApi.logout(token).catch(() => {});
-      return { error: SUSPENDED };
-    }
-    // An account made in an earlier run of the app is still on the server; give it a fresh profile here.
-    const local =
-      profile ?? buildProfile(res.user.id, { role: res.user.role === 'consultant' ? 'consultant' : 'client', name: res.user.name, email: res.user.email, phone: '', city: '' });
-    setUsers((prev) => (prev.some((u) => u.id === res.user.id) ? prev : [...prev, local]));
-
+  function afterPassword(res: LoginResponse): AuthResult {
     if (res.status === 'ok') {
       completeSignIn(res);
       return { next: 'done' };
@@ -181,18 +197,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(input: SignUpInput): Promise<AuthResult> {
     try {
-      const res = await authApi.register({ role: input.role, name: input.name.trim(), email: input.email.trim(), password: input.password });
-      return afterPassword(res, buildProfile(res.user.id, input));
+      const res = await authApi.register({
+        role: input.role,
+        name: input.name.trim(),
+        email: input.email.trim(),
+        password: input.password,
+        phone: input.phone.trim(),
+        city: input.city,
+        ...(input.role === 'consultant' && { title: input.title?.trim(), categoryId: input.categoryId }),
+      });
+      return afterPassword(res);
     } catch (err) {
       return { error: errorMessage(err) };
     }
   }
 
-  function completeSignIn({ token, user: apiUser }: { token?: string; user: ApiUser }) {
-    if (!token) return;
-    setSession({ token, mfaEnabled: apiUser.mfaEnabled, mfaRequired: apiUser.mfaRequired });
+  function completeSignIn({ token: newToken, user: apiUser }: { token?: string; user: ApiUser }) {
+    if (!newToken) return;
+    setSession({ token: newToken, mfaEnabled: apiUser.mfaEnabled, mfaRequired: apiUser.mfaRequired });
     setPendingMfa(null);
-    setUserId(apiUser.id); // the root layout switches to the user's section
+    // The root layout switches to the user's section once their profile is here.
+    if (users.some((u) => u.id === apiUser.id)) setUserId(apiUser.id);
+    authApi
+      .me(newToken)
+      .then(({ mfaEnabled: _mfa, ...profile }) => {
+        replaceUser(profile as User);
+        setUserId(profile.id);
+      })
+      .catch(() => {});
   }
 
   function cancelMfa() {
@@ -229,62 +261,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession((s) => (s ? { ...s, mfaEnabled: res.user.mfaEnabled } : s));
   }
 
-  function signOut() {
+  const signOut = useCallback(() => {
     if (session) authApi.logout(session.token).catch(() => {});
     setSession(null);
     setPendingMfa(null);
     setUserId(null);
+  }, [session]);
+
+  /** Runs an API call that returns the changed user, and stores it. Returns an error message, or null. */
+  async function saveUser(call: (token: string) => Promise<User>) {
+    if (!session) return 'Please log in again.';
+    try {
+      replaceUser(await call(session.token));
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    }
   }
 
-  // Profile changes always apply to the signed-in user, so one account can't edit another.
+  // Profile changes apply to the signed-in user; the server refuses edits to anyone else's.
 
   function updateConsultant(changes: ConsultantProfileChanges) {
-    if (user?.role !== 'consultant') return 'Only consultants can change these details.';
-    setUsers((prev) => prev.map((u) => (u.id === user.id && u.role === 'consultant' ? { ...u, ...changes } : u)));
-    return null;
+    if (user?.role !== 'consultant') return Promise.resolve('Only consultants can change these details.');
+    return saveUser((t) => dataApi.users.updateProfile(t, user.id, changes));
   }
 
-  function updateOwnProfile({ name, phone, city }: OwnProfileChanges) {
-    if (!user) return 'Please log in again.';
-    if (name.trim().length < 2) return 'Enter your full name.';
-    if (phone.replace(/\D/g, '').length < 7) return 'Enter a valid phone number.';
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id !== user.id) return u;
-        const base = { ...u, name: name.trim(), phone: phone.trim() };
-        return base.role === 'client' && city ? { ...base, city } : base;
-      }),
-    );
-    return null;
+  function updateOwnProfile({ name, phone, city, avatarUri }: OwnProfileChanges) {
+    if (!user) return Promise.resolve('Please log in again.');
+    if (name.trim().length < 2) return Promise.resolve('Enter your full name.');
+    if (phone.replace(/\D/g, '').length < 7) return Promise.resolve('Enter a valid phone number.');
+    const changes = { name: name.trim(), phone: phone.trim(), ...(user.role === 'client' && city && { city }), ...(avatarUri !== undefined && { avatarUri }) };
+    return saveUser((t) => dataApi.users.updateProfile(t, user.id, changes));
   }
 
-  /** Add a review to (1) or take one out of (-1) a consultant's average rating and count. */
-  function adjustRating(consultantId: string, rating: number, change: 1 | -1) {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === consultantId && u.role === 'consultant'
-          ? { ...u, ...adjustAverage(u.rating, u.reviewCount, rating, change) }
-          : u,
-      ),
-    );
+  function saveService(input: ServiceInput, editingId: string | null) {
+    if (user?.role !== 'consultant') return Promise.resolve('Only consultants have services.');
+    return saveUser(async (t) => (editingId ? await dataApi.services.update(t, editingId, input) : await dataApi.services.create(t, input)).user);
   }
 
-  // Admin actions. They check the signed-in role themselves, not just rely on the screens being admin-only.
+  function deleteService(serviceId: string) {
+    if (user?.role !== 'consultant') return Promise.resolve('Only consultants have services.');
+    return saveUser(async (t) => (await dataApi.services.remove(t, serviceId)).user);
+  }
+
+  // Admin actions. The server checks the role too; these checks just give a quicker message.
 
   function setVerification(consultantId: string, verification: VerificationStatus) {
-    if (user?.role !== 'admin') return 'Only an administrator can do this.';
-    if (!users.some((u) => u.id === consultantId && u.role === 'consultant')) return 'Consultant not found.';
-    setUsers((prev) => prev.map((u) => (u.id === consultantId && u.role === 'consultant' ? { ...u, verification } : u)));
-    return null;
+    if (user?.role !== 'admin') return Promise.resolve('Only an administrator can do this.');
+    return saveUser((t) => dataApi.users.setVerification(t, consultantId, verification));
   }
 
-  function setAccountStatus(userId: string, status: AccountStatus) {
-    if (user?.role !== 'admin') return 'Only an administrator can do this.';
-    const target = users.find((u) => u.id === userId);
-    if (!target) return 'User not found.';
-    if (target.role === 'admin') return 'Administrator accounts can’t be suspended here.';
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status } : u)));
-    return null;
+  function setAccountStatus(targetId: string, status: AccountStatus) {
+    if (user?.role !== 'admin') return Promise.resolve('Only an administrator can do this.');
+    return saveUser((t) => dataApi.users.setStatus(t, targetId, status));
   }
 
   return (
@@ -292,9 +321,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         users,
+        token,
         signIn,
         signUp,
         signOut,
+        refreshUsers,
+        refreshUser,
         pendingMfa,
         security: session && { mfaEnabled: session.mfaEnabled, mfaRequired: session.mfaRequired },
         verifyMfa,
@@ -307,7 +339,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         disableMfa,
         updateConsultant,
         updateOwnProfile,
-        adjustRating,
+        saveService,
+        deleteService,
         setVerification,
         setAccountStatus,
       }}>

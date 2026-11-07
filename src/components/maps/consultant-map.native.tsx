@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import MapView, { Marker } from 'react-native-maps';
+import { MapView, Marker } from '@/components/maps/styled-map-view';
 
 import { MarkerPin } from '@/components/maps/marker-pin';
 import type { Consultant } from '@/data/types';
@@ -21,7 +21,7 @@ export function ConsultantMap({ consultants, onSelect }: ConsultantMapProps) {
   return (
     <MapView
       ref={mapRef}
-      style={{ flex: 1 }}
+      className="flex-1"
       initialRegion={PNG_REGION}
       onMapReady={() => fitTo(mapRef.current, consultants)}
       rotateEnabled={false}

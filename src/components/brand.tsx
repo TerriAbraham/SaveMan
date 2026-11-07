@@ -1,62 +1,56 @@
 import { Image } from 'expo-image';
 import { Text, View } from 'react-native';
 
-import { colors } from '@/constants/theme';
+// Full class strings (not built from numbers) so Tailwind can find them.
+const bandSizes = {
+  lg: { band: 'h-[14px]', triangle: 'border-x-[14px] border-b-[14px]', count: 24 },
+  md: { band: 'h-[10px]', triangle: 'border-x-[10px] border-b-[10px]', count: 40 },
+  sm: { band: 'h-[8px]', triangle: 'border-x-[8px] border-b-[8px]', count: 40 },
+} as const;
 
 /** Sawtooth band inspired by PNG tapa cloth and bilum patterns. */
-export function PatternBand({ height = 14, count = 24 }: { height?: number; count?: number }) {
+export function PatternBand({ size = 'lg' }: { size?: keyof typeof bandSizes }) {
+  const s = bandSizes[size];
   return (
     <View
-      className="flex-row items-end overflow-hidden bg-ink"
-      style={{ height }}
+      className={`flex-row items-end overflow-hidden bg-ink ${s.band}`}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
-      {Array.from({ length: count }, (_, i) => (
-        // Triangles are drawn with borders, so their geometry stays in style.
-        <View
-          key={i}
-          style={{
-            width: 0,
-            height: 0,
-            borderLeftWidth: height,
-            borderRightWidth: height,
-            borderBottomWidth: height,
-            borderLeftColor: 'transparent',
-            borderRightColor: 'transparent',
-            borderBottomColor: i % 2 === 0 ? colors.red : colors.gold,
-          }}
-        />
+      {Array.from({ length: s.count }, (_, i) => (
+        // Triangles drawn with borders, alternating red and gold.
+        <View key={i} className={`h-0 w-0 border-x-transparent ${s.triangle} ${i % 2 === 0 ? 'border-b-red' : 'border-b-gold'}`} />
       ))}
     </View>
   );
 }
 
+// Corner radius is about a quarter of the size, matching the app icon.
+const markSizes = {
+  lg: 'h-[52px] w-[52px] rounded-[14px]',
+  sm: 'h-9 w-9 rounded-[9px]',
+} as const;
+
 /** App logo, matching the app icon: a feathered headdress with a tapa headband on deep ink with a crimson glow. */
-export function BrandMark({ size = 56 }: { size?: number }) {
+export function BrandMark({ size = 'lg' }: { size?: keyof typeof markSizes }) {
   return (
     <View
-      className="overflow-hidden border border-gold/50 bg-ink-deep"
-      style={{ width: size, height: size, borderRadius: size * 0.26 }}
+      className={`overflow-hidden border border-gold/50 bg-ink-deep ${markSizes[size]}`}
       accessibilityRole="image"
       accessibilityLabel="SaveMan logo">
-      <Image source={require('@/assets/images/logo.png')} style={{ width: '100%', height: '100%' }} />
+      <Image source={require('@/assets/images/logo.png')} className="h-full w-full" />
     </View>
   );
 }
 
 /**
- * Brand background for dark headers: deep ink, a crimson glow top-right and faint tapa-cloth linework.
+ * Brand background for dark headers: deep ink with Papua New Guinea motifs (bird of paradise,
+ * Southern Cross, tapa and bilum bands, Sepik spirals).
  * Place it as the first child of a header; the header should have `overflow-hidden`.
  */
 export function HeroTexture() {
   return (
     <View className="absolute inset-0 bg-ink-deep" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Image
-        source={require('@/assets/images/hero-texture.png')}
-        contentFit="cover"
-        contentPosition="top"
-        style={{ width: '100%', height: '100%' }}
-      />
+      <Image source={require('@/assets/images/hero-texture.png')} contentFit="cover" contentPosition="top" className="h-full w-full" />
     </View>
   );
 }
