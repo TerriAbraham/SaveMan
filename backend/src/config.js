@@ -5,9 +5,33 @@ import { fileURLToPath } from 'node:url';
 
 export const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 export const DB_PATH = process.env.DB_PATH ?? join(DATA_DIR, 'saveman.db');
+
+/**
+ * A pasted setting with the usual copy-paste slips removed: spaces and line breaks, surrounding
+ * quotes, and a whole `NAME=value` line pasted as the value.
+ */
+export function cleanSetting(value, name) {
+  let v = (value ?? '').trim();
+  if (name && v.startsWith(`${name}=`)) v = v.slice(name.length + 1).trim();
+  if (/^(["']).*\1$/.test(v)) v = v.slice(1, -1).trim();
+  return v.replace(/\s+/g, '');
+}
+
+/**
+ * Turso database address for @libsql/client, or undefined to use the local file. Accepts the
+ * dashboard's libsql:// URL (or just the host name) and uses HTTPS, which suits a server that
+ * sits idle between requests better than a long-lived WebSocket.
+ */
+export function tursoUrl(value) {
+  const v = cleanSetting(value, 'TURSO_DATABASE_URL');
+  if (!v) return undefined;
+  const withScheme = /^[a-z]+:\/\//i.test(v) ? v : `libsql://${v}`;
+  return withScheme.replace(/^(libsql|wss?):\/\//i, 'https://');
+}
+
 /** Set both to use a Turso database (online SQLite) instead of the local file, e.g. when hosted on Render. */
-export const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL || undefined;
-export const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN || undefined;
+export const TURSO_DATABASE_URL = tursoUrl(process.env.TURSO_DATABASE_URL);
+export const TURSO_AUTH_TOKEN = cleanSetting(process.env.TURSO_AUTH_TOKEN, 'TURSO_AUTH_TOKEN').replace(/^Bearer/i, '') || undefined;
 const KEY_PATH = join(DATA_DIR, 'master.key');
 
 export const PORT = Number(process.env.PORT ?? 4000);

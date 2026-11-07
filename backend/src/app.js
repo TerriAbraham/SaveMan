@@ -43,8 +43,9 @@ const minutes = (ms) => Math.max(1, Math.ceil(ms / 60000));
  * @param {() => number} [opts.now] clock, replaceable in tests
  * @param {{ auth: number, mfa: number }} [opts.limits] requests per IP per 15 minutes
  * @param {number | boolean} [opts.trustProxy] proxies in front of the API (1 on Render), so rate limits see real client IPs
+ * @param {'turso' | 'local'} [opts.database] shown by /api/health
  */
-export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false }) {
+export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 30 }, trustProxy = false, database = 'local' }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -206,7 +207,8 @@ export function createApp({ db, keys, now = Date.now, limits = { auth: 20, mfa: 
 
   // ---- Routes --------------------------------------------------------------------------------
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // `database` says where data is kept ('turso', or 'local' if Turso isn't set up or couldn't be reached).
+  app.get('/api/health', (_req, res) => res.json({ ok: true, database }));
 
   app.post('/api/auth/register', authLimiter, async (req, res) => {
     const role = req.body?.role;

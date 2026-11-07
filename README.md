@@ -85,7 +85,7 @@ To let anyone use the app, not just phones on your Wi-Fi, host the API on **Rend
 1. **Turso:** sign up at [turso.tech](https://turso.tech), create a database, then copy its **URL** (`libsql://…`) and create a **token** for it.
 2. **GitHub:** push this project to a GitHub repository.
 3. **Render:** sign up at [render.com](https://render.com) with GitHub, choose **New → Blueprint** and pick the repository. It reads `render.yaml`, creates `saveman-api` on the free plan, generates `MFA_MASTER_KEY`, and asks for `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. Paste them in.
-4. When it's live, open `https://<your-service>.onrender.com/api/health`. It should show `{"ok":true}`. The first start adds the demo accounts to Turso.
+4. When it's live, open `https://<your-service>.onrender.com/api/health`. It should show `{"ok":true,"database":"turso"}`. The first start adds the demo accounts to Turso. If it says `"database":"local"`, the server couldn't use Turso and is running on a temporary database: the Render log says why (usually a mistyped URL, or a token without write access). Fix the value under **Environment** and redeploy.
 5. In the project root `.env`, set `EXPO_PUBLIC_API_URL=https://<your-service>.onrender.com` and restart `npx expo start` (or rebuild).
 
 The free service **sleeps after 15 minutes** without requests. The next request wakes it in about a minute, and the app shows *"Waking up the SaveMan server"* meanwhile. Before a demo, open the health link a minute early. Never change `MFA_MASTER_KEY` once set: existing authenticator setups would stop working.
